@@ -1,0 +1,11 @@
+src/
+test/
+node_modules/
+*.log
+*.ts
+*.map
+.gitignore
+tsconfig.json
+jest.config.js
+package-lock.json
+README.md

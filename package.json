@@ -36,6 +36,8 @@
     "ts-morph": "^22.0.0"
   },
   "scripts": {
-    "build": "tsc"
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc",
+    "publish": "npm run clean && tsc && npm publish && rm -rf dist"
   }
 }

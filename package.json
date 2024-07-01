@@ -37,7 +37,6 @@
   },
   "scripts": {
     "clean": "rm -rf dist",
-    "build": "npm run clean && tsc",
-    "publish": "npm run clean && tsc && npm publish && rm -rf dist"
+    "build": "npm run clean && tsc"
   }
 }

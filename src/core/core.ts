@@ -3,7 +3,7 @@ import { Context, FuncInstanceMetadata } from "./type.js";
 import { scanFunctions } from "./scanner.js";
 
 /**
- * Singleton instance of skeleto 
+ * Singleton instance of skeleto
  */
 export class Skeleto {
   //
@@ -21,7 +21,7 @@ export class Skeleto {
     return Skeleto.instance;
   }
 
-  public async startScan(directory: string = "src/app") {
+  public async startScan(directory: string = "src") {
     if (!Skeleto.instance.container) {
       const project = new Project();
       project.addSourceFilesAtPaths(`${directory}/**/*.ts`);

@@ -3,7 +3,7 @@ import { OpenAPI3, ParameterObject, ReferenceObject, SchemaObject, SecuritySchem
 import { FuncInstanceMetadata } from "../core/type.js";
 import { camelToPascalWithSpace, Methods } from "./helper.js";
 
-export function generateOpenAPIObject(usecases: FuncInstanceMetadata[], securitySchemes?: Record<string, SecuritySchemeObject | ReferenceObject>) {
+export function generateOpenAPIObject(useCases: FuncInstanceMetadata[], securitySchemes?: Record<string, SecuritySchemeObject | ReferenceObject>) {
   //
 
   const settings: TJS.PartialArgs = { required: true };
@@ -19,11 +19,11 @@ export function generateOpenAPIObject(usecases: FuncInstanceMetadata[], security
     },
   };
 
-  const paths = usecases.map(({ funcMetadata }) => funcMetadata.request?.path as string);
+  const paths = useCases.map(({ funcMetadata }) => funcMetadata.request?.path as string);
 
   const program = TJS.getProgramFromFiles(paths, compilerOptions);
 
-  usecases.forEach(({ funcMetadata }) => {
+  useCases.forEach(({ funcMetadata }) => {
     //
 
     const requestField = TJS.generateSchema(program, funcMetadata.request?.name as string, settings);

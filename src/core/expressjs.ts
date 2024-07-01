@@ -1,6 +1,6 @@
 import express from "express";
 import { newContext } from "../core/core.js";
-import { FuncInstanceMetadata, UsecaseHandler } from "../core/type.js";
+import { FuncInstanceMetadata, UseCaseHandler } from "../core/type.js";
 import { Methods } from "./helper.js";
 
 export type RequestWithContext = express.Request & {
@@ -11,13 +11,13 @@ export const getRequestWithContext = (req: express.Request) => {
   return (req as RequestWithContext).context;
 };
 
-export function generateController(router: express.Router, usecases: FuncInstanceMetadata[]) {
+export function generateController(router: express.Router, useCases: FuncInstanceMetadata[]) {
   //
 
-  usecases.forEach(({ funcInstance, funcMetadata }) => {
+  useCases.forEach(({ funcInstance, funcMetadata }) => {
     //
 
-    const usecase = funcInstance as UsecaseHandler;
+    const useCase = funcInstance as UseCaseHandler;
 
     const data = funcMetadata.decorators.find((x) => x.name === "Controller")?.data as { method: Methods; path: string; tag: string };
 
@@ -61,7 +61,7 @@ export function generateController(router: express.Router, usecases: FuncInstanc
           }
         });
       });
-      const result = await usecase(newContext(), payload);
+      const result = await useCase(newContext(), payload);
       res.json(result);
     });
   });

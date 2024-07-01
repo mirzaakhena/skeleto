@@ -1,12 +1,12 @@
 import { camelToPascalWithSpace, Methods } from "./helper.js";
 import { FuncInstanceMetadata } from "./type.js";
 
-export function printController(usecases: FuncInstanceMetadata[]) {
+export function printController(useCases: FuncInstanceMetadata[]) {
   let maxLengthRoute = 0;
-  let maxLengthUsecase = 0;
+  let maxLengthUseCase = 0;
   let maxLengthTag = 0;
 
-  usecases.forEach(({ funcMetadata }) => {
+  useCases.forEach(({ funcMetadata }) => {
     //
 
     const data = funcMetadata.decorators.find((x) => x.name === "Controller")?.data as { method: Methods; path: string; tag: string };
@@ -15,9 +15,9 @@ export function printController(usecases: FuncInstanceMetadata[]) {
       maxLengthRoute = data.path.toString().length;
     }
 
-    const usecase = camelToPascalWithSpace(funcMetadata.name);
-    if (maxLengthUsecase < usecase.length) {
-      maxLengthUsecase = usecase.length;
+    const useCase = camelToPascalWithSpace(funcMetadata.name);
+    if (maxLengthUseCase < useCase.length) {
+      maxLengthUseCase = useCase.length;
     }
 
     if (maxLengthTag < data.tag.length) {
@@ -27,7 +27,7 @@ export function printController(usecases: FuncInstanceMetadata[]) {
 
   let tag = "";
 
-  return usecases.map(({ funcMetadata }) => {
+  return useCases.map(({ funcMetadata }) => {
     //
 
     const data = funcMetadata.decorators.find((x) => x.name === "Controller")?.data as { method: Methods; path: string; tag: string };
@@ -43,7 +43,7 @@ export function printController(usecases: FuncInstanceMetadata[]) {
     return {
       //
       tag: groupLabel.toUpperCase().padEnd(maxLengthTag),
-      usecase: camelToPascalWithSpace(funcMetadata.name).padEnd(maxLengthUsecase).substring(0),
+      useCase: camelToPascalWithSpace(funcMetadata.name).padEnd(maxLengthUseCase).substring(0),
       method: data.method.padStart(6).toUpperCase(),
       path: data.path.toString().padEnd(maxLengthRoute).substring(0),
     };

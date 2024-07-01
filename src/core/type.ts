@@ -8,9 +8,9 @@ type ActionHandler<REQUEST = any, RESPONSE = any> = (ctx: Context, request: REQU
 
 export type GatewayHandler<REQUEST = any, RESPONSE = any> = ActionHandler<REQUEST, RESPONSE>;
 
-export type UsecaseHandler<REQUEST = any, RESPONSE = any> = ActionHandler<REQUEST, RESPONSE>;
+export type UseCaseHandler<REQUEST = any, RESPONSE = any> = ActionHandler<REQUEST, RESPONSE>;
 
-export type PluginHandler = (ah: ActionHandler, functionMetadata: FuncMetadata) => ActionHandler;
+export type MiddlewareHandler = (ah: ActionHandler, functionMetadata: FuncMetadata) => ActionHandler;
 
 export type FuncInstanceMetadata = { funcInstance: any; funcMetadata: FuncMetadata };
 
@@ -27,7 +27,7 @@ export type TypeOf<T extends readonly any[]> = T[number];
 
 export type Decorator = { name: string; data: any };
 
-export const InjectableDecorator = ["Config", "Plugin", "Gateway", "Usecase"] as const;
+export const InjectableDecorator = ["Config", "Middleware", "Gateway", "UseCase"] as const;
 
 export type TypeField = {
   name: string;

@@ -5,8 +5,8 @@ import "reflect-metadata";
 import { Skeleto } from "skeleto";
 import { DataSource } from "typeorm";
 import YAML from "yaml";
-import { generateController, handleJWTAuth, printController } from "./app/controller.js";
-import { generateOpenAPIObject } from "./app/open_api.js";
+import { generateController, handleJWTAuth, printController } from "./infrastructure/controller.js";
+import { generateOpenAPIObject } from "./infrastructure/open_api.js";
 
 async function main() {
   //

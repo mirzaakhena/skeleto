@@ -1,5 +1,5 @@
 import winston from "winston";
-import { Logger } from "./types.js";
+import { Logger } from "../app/types.js";
 
 /**
  *

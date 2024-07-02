@@ -1,7 +1,7 @@
 import { DataSource } from "typeorm";
 import { v4 as uuidv4 } from "uuid";
 import { Person } from "./model_person.js";
-import { getDataSourceFromContext } from "./transaction.js";
+import { getDataSourceFromContext } from "../infrastructure/transaction.js";
 import { FindOnePersonByEmail, GenerateRandomId, SavePerson } from "./types.js";
 
 /**

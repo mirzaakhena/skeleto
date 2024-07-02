@@ -1,6 +1,6 @@
 import { Context, FuncMetadata, ActionHandler } from "skeleto";
 import { DataSource } from "typeorm";
-import { Transaction } from "./types.js";
+import { Transaction } from "../app/types.js";
 import winston from "winston";
 
 /**

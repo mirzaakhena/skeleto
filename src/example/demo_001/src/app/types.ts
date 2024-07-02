@@ -1,11 +1,11 @@
 import { ActionHandler, MiddlewareHandler } from "skeleto";
 import { Person } from "./model_person.js";
-import { DataSource } from "typeorm";
-
-export type AppDataSource = DataSource;
 
 // define transaction
 export type Transaction = MiddlewareHandler;
+
+// define logger
+export type Logger = MiddlewareHandler;
 
 // define request type
 type FindOnePersonByEmailRequest = {
@@ -37,10 +37,12 @@ type Request = {
   /**
    * @RequestPart body
    */
-  payload: {
-    email: string;
-    name: string;
-  };
+  email: string;
+
+  /**
+   * @RequestPart body
+   */
+  name: string;
 
   /**
    * @RequestPart query

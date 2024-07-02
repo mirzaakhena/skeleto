@@ -307,7 +307,8 @@ function getTypeDeclarationSourceFile(sourceFile: SourceFile, typeName: string):
 
 // Apply middlewares
 const applyMiddlewares = (currentResult: any, metadata: FuncMetadata, middlewareMetadatas: FuncMetadata[], funcResultMap: Map<string, FuncInstanceMetadata>) => {
-  for (const middlewareMetadata of middlewareMetadatas) {
+  const sortBasedOrdinal = middlewareMetadatas.sort((a, b) => ((a.mainDecorator.data.ordinal ?? 0) as number) - ((b.mainDecorator.data.ordinal ?? 0) as number));
+  for (const middlewareMetadata of sortBasedOrdinal) {
     const middlewareHandler = funcResultMap.get(middlewareMetadata.name)?.funcInstance;
     currentResult = middlewareHandler(currentResult, metadata);
   }

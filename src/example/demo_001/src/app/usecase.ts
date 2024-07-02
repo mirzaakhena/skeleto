@@ -22,19 +22,19 @@ export function ImplRegisterUniquePerson(
 
   return async (ctx, req) => {
     //
-    if (req.payload.email.trim() === "") {
+    if (req.email.trim() === "") {
       throw new Error(`Email must not be empty`);
     }
 
-    const objPerson = await findOnePersonByEmail(ctx, { email: req.payload.email });
+    const objPerson = await findOnePersonByEmail(ctx, { email: req.email });
 
     if (objPerson) {
-      throw new Error(`Person with email ${req.payload.email} already exists`);
+      throw new Error(`Person with email ${req.email} already exists`);
     }
 
     const newPerson = new Person();
-    newPerson.name = req.payload.name;
-    newPerson.email = req.payload.email;
+    newPerson.name = req.name;
+    newPerson.email = req.email;
     newPerson.id = await generateRandomId(ctx);
 
     await savePerson(ctx, newPerson);

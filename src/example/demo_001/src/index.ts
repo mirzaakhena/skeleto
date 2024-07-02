@@ -1,10 +1,10 @@
-import express from "express";
-import dotenv from "dotenv";
 import cors from "cors";
-import YAML from "yaml";
+import dotenv from "dotenv";
+import express from "express";
 import "reflect-metadata";
-import { newContext, Skeleto, ActionHandler } from "skeleto";
-import { AppDataSource } from "./app/types.js";
+import { Skeleto } from "skeleto";
+import { DataSource } from "typeorm";
+import YAML from "yaml";
 import { generateController, handleJWTAuth, printController } from "./app/controller.js";
 import { generateOpenAPIObject } from "./app/open_api.js";
 
@@ -15,8 +15,7 @@ async function main() {
 
   const application = await Skeleto.getInstance().startScan();
 
-  const dataSource = application.getContainer().get("AppDataSource")?.funcInstance as AppDataSource;
-
+  const dataSource = application.getContainer().get("DataSource")?.funcInstance as DataSource;
   await dataSource.initialize();
 
   const app = express();
@@ -37,6 +36,7 @@ async function main() {
   };
 
   app.use(cors({ exposedHeaders: ["Trace-Id", "Date"] }));
+
   router.get("/openapi", (req, res) => {
     res.setHeader("Content-Type", "application/x-yaml");
     res.send(
@@ -48,7 +48,7 @@ async function main() {
       )
     );
   });
-
+  app.use(express.json());
   app.use("/", handleJWTAuth("SECRET_KEY", "userLogin"), router);
 
   console.table(printController(usecases));

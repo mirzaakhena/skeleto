@@ -1,14 +1,12 @@
 import express from "express";
-import { newContext } from "skeleto";
-import { FuncInstanceMetadata, ActionHandler } from "skeleto";
+import { ActionHandler, FuncInstanceMetadata, newContext } from "skeleto";
+import { camelToPascalWithSpace, Methods } from "./shared.js";
 
-export type Methods = "all" | "get" | "post" | "put" | "delete" | "patch" | "options" | "head";
-
-export type RequestWithContext = express.Request & {
+type RequestWithContext = express.Request & {
   context?: Record<string, any>;
 };
 
-export const getRequestWithContext = (req: express.Request) => {
+const getRequestWithContext = (req: express.Request) => {
   return (req as RequestWithContext).context;
 };
 
@@ -62,8 +60,13 @@ export function generateController(router: express.Router, useCases: FuncInstanc
           }
         });
       });
-      const result = await useCase(newContext(), payload);
-      res.json(result);
+
+      try {
+        const result = await useCase(newContext(), payload);
+        res.json(result);
+      } catch (error: any) {
+        res.json({ message: error.message });
+      }
     });
   });
 }
@@ -98,12 +101,6 @@ export const handleJWTAuth = (secretKey: string, fieldName: string) => async (re
     next(e);
   }
 };
-
-function camelToPascalWithSpace(input: string): string {
-  return input
-    .replace(/([a-z])([A-Z])/g, "$1 $2") // Add space between camelCase
-    .replace(/([a-zA-Z])+/g, (match) => match.charAt(0).toUpperCase() + match.slice(1)); // Convert to PascalCase
-}
 
 export function printController(usecases: FuncInstanceMetadata[]) {
   let maxLengthRoute = 0;

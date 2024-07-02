@@ -1,0 +1,5 @@
+{"level":"info","message":">>>>>> START    TRANSACTION","timestamp":"2024-07-02T13:02:46.907Z"}
+{"level":"info","message":{"data":{"email":"string","name":"string","something":"20"},"name":"RegisterUniquePerson","type":"request"},"timestamp":"2024-07-02T13:02:46.908Z"}
+{"level":"info","message":{"data":{"email":"string"},"name":"FindOnePersonByEmail","type":"request"},"timestamp":"2024-07-02T13:02:46.909Z"}
+{"level":"info","message":{"data":{"email":"string","id":"47b05876-1874-439f-9bcf-ca0f161969d3","name":"string"},"name":"FindOnePersonByEmail","type":"response"},"timestamp":"2024-07-02T13:02:46.918Z"}
+{"level":"info","message":">>>>>> ROLLBACK TRANSACTION","timestamp":"2024-07-02T13:02:46.918Z"}

@@ -1,13 +1,14 @@
+import { DataSource } from "typeorm";
 import { v4 as uuidv4 } from "uuid";
 import { Person } from "./model_person.js";
 import { getDataSourceFromContext } from "./transaction.js";
-import { AppDataSource, FindOnePersonByEmail, GenerateRandomId, SavePerson } from "./types.js";
+import { FindOnePersonByEmail, GenerateRandomId, SavePerson } from "./types.js";
 
 /**
  *
  * @Action
  */
-export function implFindOnePersonByEmail(ds: AppDataSource): FindOnePersonByEmail {
+export function implFindOnePersonByEmail(ds: DataSource): FindOnePersonByEmail {
   return async (ctx, req) => {
     return await getDataSourceFromContext(ctx, ds)
       .getRepository(Person)
@@ -19,7 +20,7 @@ export function implFindOnePersonByEmail(ds: AppDataSource): FindOnePersonByEmai
  *
  * @Action
  */
-export function implSavePerson(ds: AppDataSource): SavePerson {
+export function implSavePerson(ds: DataSource): SavePerson {
   return async (ctx, req) => {
     await getDataSourceFromContext(ctx, ds).getRepository(Person).save(req);
   };

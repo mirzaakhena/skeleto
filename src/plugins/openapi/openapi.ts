@@ -1,7 +1,14 @@
 import * as TJS from "typescript-json-schema";
 import { OpenAPI3, ParameterObject, ReferenceObject, SchemaObject, SecuritySchemeObject } from "./openapi_types.js";
 import { FuncMetadata } from "../../core/type.js";
-import { camelToPascalWithSpace, Methods } from "../../core/helper.js";
+
+type Methods = "all" | "get" | "post" | "put" | "delete" | "patch" | "options" | "head";
+
+function camelToPascalWithSpace(input: string): string {
+  return input
+    .replace(/([a-z])([A-Z])/g, "$1 $2") // Add space between camelCase
+    .replace(/([a-zA-Z])+/g, (match) => match.charAt(0).toUpperCase() + match.slice(1)); // Convert to PascalCase
+}
 
 export function generateOpenAPIObject(useCases: FuncMetadata[], securitySchemes?: Record<string, SecuritySchemeObject | ReferenceObject>) {
   //
@@ -30,7 +37,7 @@ export function generateOpenAPIObject(useCases: FuncMetadata[], securitySchemes?
 
     const responseField = TJS.generateSchema(program, funcMetadata.response?.name as string, settings);
 
-    const data = funcMetadata.decorators.find((x) => x.name === "Controller")?.data as { method: Methods; path: string; tag: string; security: string };
+    const data = funcMetadata.additionalDecorators.find((x) => x.name === "Controller")?.data as { method: Methods; path: string; tag: string; security: string };
 
     let path = data.path;
 

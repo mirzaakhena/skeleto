@@ -8,6 +8,8 @@ Why using function instead of class?
 
 Every Component is defined by JSDoc. We use JSDoc because of current limitation by typescript language that cannot allowed decorator at the function. So that we use JSDoc.
 
+There are 3 kind of components: Config, Middleware and Action
+
 ## Config
 
 A decorator to define an object (ex: database configuration) that used by Gateways

@@ -1,13 +1,11 @@
 export {
   //
   Context,
-  GatewayHandler,
-  UseCaseHandler,
+  ActionHandler,
   MiddlewareHandler,
   Decorator,
   FuncInstanceMetadata,
   FuncMetadata,
-  InjectableDecorator,
   TypeField,
 } from "./core/type.js";
 

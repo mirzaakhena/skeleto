@@ -36,6 +36,6 @@
   "scripts": {
     "clean": "rm -rf dist coverage",
     "build": "npm run clean && tsc",
-    "test": "jest --no-cache --detectOpenHandles"
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --no-cache --detectOpenHandles"
   }
 }

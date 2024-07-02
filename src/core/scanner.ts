@@ -1,7 +1,6 @@
 import { FunctionDeclaration, JSDoc, Node, Project, SourceFile, SyntaxKind, ts, TypeNode, TypeReferenceNode } from "ts-morph";
 import { DependencyResolver } from "./dependency_resolver.js";
 import { Decorator, FuncInstanceMetadata, FuncMetadata, InjectableDecorator, TypeField, TypeOf } from "./type.js";
-import { TypeLiteralNode } from "typescript";
 
 type FuncDeclMetadata = { funcMetadata: FuncMetadata; funcDeclaration: FunctionDeclaration };
 
@@ -83,7 +82,7 @@ const reset = "\x1b[0m";
 const fgRed = "\x1b[31m";
 const fgGreen = "\x1b[32m";
 const fgBlue = "\x1b[34m";
-const fgMagenta = "\x1b[35m";
+// const fgMagenta = "\x1b[35m";
 // const fgBlack = "\x1b[30m";
 // const fgYellow = "\x1b[33m";
 // const fgCyan = "\x1b[36m";
@@ -335,9 +334,6 @@ const extractUseCaseMetadata = async (funcDecl: FunctionDeclaration, metadata: F
   typeArguments.forEach((typeArgument, index) => {
     handleTypeArgument(typeArgument, index, aliasSourceFile, metadata, aliasDecl);
   });
-
-  console.log("METADATA REQUEST ", JSON.stringify(metadata.request, null, 2));
-  console.log("METADATA RESPONSE", JSON.stringify(metadata.response, null, 2));
 };
 
 // Handle Type arguments

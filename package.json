@@ -16,7 +16,8 @@
     "backend",
     "dependency injection",
     "function",
-    "closure"
+    "closure",
+    "type"
   ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -30,8 +31,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "ts-morph": "^22.0.0",
-    "typescript-json-schema": "^0.63.0"
+    "ts-morph": "^22.0.0"
   },
   "scripts": {
     "clean": "rm -rf dist coverage",

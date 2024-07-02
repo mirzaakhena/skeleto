@@ -1,4 +1,4 @@
-export type TypeDependencies = {
+type TypeDependencies = {
   name: string;
   dependencies: string[];
 };

@@ -6,4 +6,4 @@ node_modules/
 tsconfig.json
 jest.config.js
 package-lock.json
-README.md
+coverage/

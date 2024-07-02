@@ -1,9 +1,9 @@
 import * as TJS from "typescript-json-schema";
-import { OpenAPI3, ParameterObject, ReferenceObject, SchemaObject, SecuritySchemeObject } from "../core/openapi_types.js";
-import { FuncInstanceMetadata } from "../core/type.js";
-import { camelToPascalWithSpace, Methods } from "./helper.js";
+import { OpenAPI3, ParameterObject, ReferenceObject, SchemaObject, SecuritySchemeObject } from "./openapi_types.js";
+import { FuncMetadata } from "../../core/type.js";
+import { camelToPascalWithSpace, Methods } from "../../core/helper.js";
 
-export function generateOpenAPIObject(useCases: FuncInstanceMetadata[], securitySchemes?: Record<string, SecuritySchemeObject | ReferenceObject>) {
+export function generateOpenAPIObject(useCases: FuncMetadata[], securitySchemes?: Record<string, SecuritySchemeObject | ReferenceObject>) {
   //
 
   const settings: TJS.PartialArgs = { required: true };
@@ -19,11 +19,11 @@ export function generateOpenAPIObject(useCases: FuncInstanceMetadata[], security
     },
   };
 
-  const paths = useCases.map(({ funcMetadata }) => funcMetadata.request?.path as string);
+  const paths = useCases.map((funcMetadata) => funcMetadata.request?.path as string);
 
   const program = TJS.getProgramFromFiles(paths, compilerOptions);
 
-  useCases.forEach(({ funcMetadata }) => {
+  useCases.forEach((funcMetadata) => {
     //
 
     const requestField = TJS.generateSchema(program, funcMetadata.request?.name as string, settings);
@@ -41,7 +41,7 @@ export function generateOpenAPIObject(useCases: FuncInstanceMetadata[], security
     funcMetadata.request?.structure.forEach((x) => {
       //
 
-      x.decorator.forEach((y) => {
+      x.decorators.forEach((y) => {
         //
 
         if (y.name !== "RequestPart") return;

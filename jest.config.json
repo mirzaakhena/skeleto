@@ -1,0 +1,21 @@
+{
+  "roots": ["<rootDir>"],
+  "extensionsToTreatAsEsm": [".ts"],
+  "transform": {
+    "^.+\\.ts?$": [
+      "ts-jest",
+      {
+        "useESM": true
+      }
+    ]
+  },
+  "preset": "ts-jest/presets/default-esm",
+  "moduleNameMapper": {
+    "^(\\.{1,2}/.*)\\.js$": "$1"
+  },
+  "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.ts?$",
+  "moduleFileExtensions": ["ts", "js", "json", "node"],
+  "collectCoverage": true,
+  "clearMocks": true,
+  "coverageDirectory": "coverage"
+}

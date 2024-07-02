@@ -1,4 +1,4 @@
-import { FunctionDeclaration, JSDoc, Node, Project, SourceFile, SyntaxKind, ts, TypeAliasDeclaration, TypeNode, TypeReferenceNode } from "ts-morph";
+import { FunctionDeclaration, JSDoc, Node, Project, SourceFile, SyntaxKind, ts, TypeNode, TypeReferenceNode } from "ts-morph";
 import { DependencyResolver } from "./dependency_resolver.js";
 import { Decorator, FuncInstanceMetadata, FuncMetadata, InjectableDecorator, TypeField, TypeOf } from "./type.js";
 
@@ -152,9 +152,7 @@ function extractFunctions(project: Project): Map<string, FuncDeclMetadata> {
         decorators,
       };
 
-      printToLog(
-        `  as ${badgeColorForKind(meta.kind).padEnd(16)} func ${meta.name.padEnd(50)} ${meta.dependencies.length > 0 ? `depend on : ${meta.dependencies}` : "no dependency"}`
-      );
+      printToLog(`  as ${badgeColorForKind(meta.kind).padEnd(19)} func ${meta.name.padEnd(50)} ${meta.dependencies.length > 0 ? `${meta.dependencies}` : "-"}`);
 
       funcMap.set(functionReturnTypeName, { funcDeclaration: func, funcMetadata: meta });
     });
@@ -173,8 +171,6 @@ function extractFunctions(project: Project): Map<string, FuncDeclMetadata> {
 function sortFunctionsByKind(funcMap: Map<string, FuncDeclMetadata>) {
   const configMetadatas: FuncMetadata[] = [];
   const middlewareMetadatas: FuncMetadata[] = [];
-  // const actionMetadatas: FuncMetadata[] = [];
-
   const gatewayMetadatas: FuncMetadata[] = [];
   const useCaseMetadatas: FuncMetadata[] = [];
 
@@ -305,9 +301,6 @@ function getTypeDeclarationSourceFile(sourceFile: SourceFile, typeName: string):
     return sourceFile;
   }
 
-  // const typeDecl = sourceFile.getTypeAlias(typeName) || sourceFile.getClass(typeName) || sourceFile.getInterface(typeName);
-  // if (typeDecl) return sourceFile;
-
   const imports = sourceFile.getImportDeclarations();
   for (const imp of imports) {
     for (const namedImport of imp.getNamedImports()) {
@@ -323,135 +316,204 @@ function getTypeDeclarationSourceFile(sourceFile: SourceFile, typeName: string):
   throw new Error(`Type ${typeName} not found at ${sourceFile.getFilePath()}`);
 }
 
-/**
- * Resolves and instantiates gateway handler functions, including their dependencies and middlewares.
- * @param metadatas - Array of action handler function metadata.
- * @param middlewareMetadatas - Array of middleware function metadata.
- * @param funcMap - Map of function names to their metadata and declarations.
- * @param funcResultMap - Map to store the results and metadata of resolved functions.
- */
-async function resolveGatewayFunctions(
+// Resolve functions (gateway or use case)
+const resolveFunctions = async (
   metadatas: FuncMetadata[],
   middlewareMetadatas: FuncMetadata[],
   funcMap: Map<string, FuncDeclMetadata>,
-  funcResultMap: Map<string, FuncInstanceMetadata>
-) {
+  funcResultMap: Map<string, FuncInstanceMetadata>,
+  isUseCase: boolean
+) => {
   for (const metadata of metadatas) {
     const funcDecl = funcMap.get(metadata.name)?.funcDeclaration as FunctionDeclaration;
     printToLog("  funcDecl          :", funcDecl.getName());
+
+    if (isUseCase) {
+      await extractUseCaseMetadata(funcDecl, metadata);
+    }
 
     const module = await import(funcDecl.getSourceFile().getFilePath());
     const funcName = funcDecl.getName() as string;
     const paramHandlers = getParameterHandler(funcDecl, funcResultMap);
 
     let currentResult = module[funcName](...paramHandlers);
-
-    for (const middlewareMetadata of middlewareMetadatas) {
-      const middlewareHandler = funcResultMap.get(middlewareMetadata.name)?.funcInstance;
-      currentResult = middlewareHandler(currentResult, metadata);
-    }
+    currentResult = applyMiddlewares(currentResult, metadata, middlewareMetadatas, funcResultMap);
 
     funcResultMap.set(metadata.name, { funcInstance: currentResult, funcMetadata: metadata });
   }
   printToLog();
-}
+};
 
-/**
- * Resolves and instantiates action handler functions, including their dependencies and middlewares.
- * @param metadatas - Array of action handler function metadata.
- * @param middlewareMetadatas - Array of middleware function metadata.
- * @param funcMap - Map of function names to their metadata and declarations.
- * @param funcResultMap - Map to store the results and metadata of resolved functions.
- */
-async function resolveUseCaseFunctions(
-  metadatas: FuncMetadata[],
-  middlewareMetadatas: FuncMetadata[],
-  funcMap: Map<string, FuncDeclMetadata>,
-  funcResultMap: Map<string, FuncInstanceMetadata>
-) {
-  for (const metadata of metadatas) {
-    const funcDecl = funcMap.get(metadata.name)?.funcDeclaration as FunctionDeclaration;
-    printToLog("  funcDecl          :", funcDecl.getName());
+// Apply middlewares
+const applyMiddlewares = (currentResult: any, metadata: FuncMetadata, middlewareMetadatas: FuncMetadata[], funcResultMap: Map<string, FuncInstanceMetadata>) => {
+  for (const middlewareMetadata of middlewareMetadatas) {
+    const middlewareHandler = funcResultMap.get(middlewareMetadata.name)?.funcInstance;
+    currentResult = middlewareHandler(currentResult, metadata);
+  }
+  return currentResult;
+};
 
-    const aliasSourceFile = getTypeDeclarationSourceFile(funcDecl.getSourceFile(), metadata.name);
-    printToLog("  aliasSourceFile   :", aliasSourceFile.getFilePath());
+// Extract metadata for use cases
+const extractUseCaseMetadata = async (funcDecl: FunctionDeclaration, metadata: FuncMetadata) => {
+  const aliasSourceFile = getTypeDeclarationSourceFile(funcDecl.getSourceFile(), metadata.name);
+  printToLog("  aliasSourceFile   :", aliasSourceFile.getFilePath());
+  const aliasDecl = aliasSourceFile.getTypeAlias(metadata.name);
+  if (!aliasDecl) return;
+  printToLog("  aliasDecl         :", aliasDecl?.getText());
 
-    const aliasDecl = aliasSourceFile.getTypeAlias(metadata.name);
-    if (!aliasDecl) continue;
-    printToLog("  aliasDecl         :", aliasDecl?.getText());
+  const typeNode = aliasDecl.getTypeNode();
+  if (!typeNode) return;
+  printToLog("  typeNode          :", typeNode.getText());
 
-    const typeNode = aliasDecl.getTypeNode();
-    if (!typeNode) continue;
-    printToLog("  typeNode          :", typeNode.getText());
+  const typeReferenceNode = typeNode.asKindOrThrow(ts.SyntaxKind.TypeReference);
+  printToLog("  typeReferenceNode :", typeReferenceNode.getText());
 
-    const typeReferenceNode = typeNode.asKindOrThrow(ts.SyntaxKind.TypeReference);
-    printToLog("  typeReferenceNode :", typeReferenceNode.getText());
+  const typeArguments = typeReferenceNode.getTypeArguments();
+  typeArguments.forEach((typeArgument, index) => {
+    handleTypeArgument(typeArgument, index, aliasSourceFile, metadata, aliasDecl);
+  });
+};
 
-    const typeArguments = typeReferenceNode.getTypeArguments();
+// Handle Type arguments
+const handleTypeArgument = (typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata, aliasDecl: any) => {
+  printToLog("  typeArgumentKind  :", typeArgument.getKindName());
 
-    typeArguments.forEach((typeArgument, index) => {
-      printToLog("  typeArgumentKind  :", typeArgument.getKindName());
+  if (typeArgument.getKind() === SyntaxKind.TypeReference) {
+    handleTypeReferenceArgument(typeArgument, index, aliasSourceFile, metadata, aliasDecl);
+  } else if (typeArgument.getKind() === SyntaxKind.TypeLiteral) {
+    // Handle TypeLiteral case
+  } else {
+    // throw new Error("the type should be Reference or Literal");
+  }
+};
 
-      if (typeArgument.getKind() === SyntaxKind.TypeReference) {
-        printToLog("  typeArgumentText  :", typeArgument.getText(true));
-
-        const payloadSourceFile = getTypeDeclarationSourceFile(aliasSourceFile, typeArgument.getText(true));
-        printToLog("  payloadSourceFile :", payloadSourceFile.getFilePath());
-
-        const dk = getDeclarationKind(payloadSourceFile, typeArgument.getText(true));
-
-        if (dk) {
-          const properties = dk.decl?.getType().getProperties()!;
-
-          const typeFields = properties.map((prop) => {
-            const name = prop.getName();
-            const type = prop.getTypeAtLocation(aliasDecl).getText();
-
-            const decorator = prop.getJsDocTags().map((doc) => {
-              const texts = doc.getText();
-
-              const text = texts.length > 0 ? texts[0].text : "";
-
-              try {
-                const jsonText = JSON.parse(text);
-                return { name: doc.getName(), data: jsonText };
-              } catch {
-                return { name: doc.getName(), data: text };
-              }
-            });
-
-            return { name, type, decorator } as TypeField;
-          });
-
-          metadata[index === 0 ? "request" : "response"] = {
-            name: dk.decl?.getName() as string,
-            path: payloadSourceFile.getFilePath(),
-            structure: typeFields,
-          };
-        }
-      } else if (typeArgument.getKind() === SyntaxKind.TypeLiteral) {
-        // Handle TypeLiteral case
-      } else {
-        // throw new Error("the type should be Reference or Literal");
-      }
+// Handle TypeReference arguments
+const handleTypeReferenceArgument = (typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata, aliasDecl: any) => {
+  printToLog("  typeArgumentText  :", typeArgument.getText(true));
+  const payloadSourceFile = getTypeDeclarationSourceFile(aliasSourceFile, typeArgument.getText(true));
+  printToLog("  payloadSourceFile :", payloadSourceFile.getFilePath());
+  const dk = getDeclarationKind(payloadSourceFile, typeArgument.getText(true));
+  if (dk) {
+    const properties = dk.decl?.getType().getProperties()!;
+    const typeFields = properties.map((prop) => {
+      const name = prop.getName();
+      const type = prop.getTypeAtLocation(aliasDecl).getText();
+      const decorator = prop.getJsDocTags().map((doc) => ({ name: doc.getName(), data: parseJsDocText(doc.getText()) }));
+      return { name, type, decorators: decorator } as TypeField;
     });
-
-    const module = await import(funcDecl.getSourceFile().getFilePath());
-    const funcName = funcDecl.getName() as string;
-    const paramHandlers = getParameterHandler(funcDecl, funcResultMap);
-
-    let currentResult = module[funcName](...paramHandlers);
-
-    for (const middlewareMetadata of middlewareMetadatas) {
-      const middlewareHandler = funcResultMap.get(middlewareMetadata.name)?.funcInstance;
-      currentResult = middlewareHandler(currentResult, metadata);
-    }
-
-    funcResultMap.set(metadata.name, { funcInstance: currentResult, funcMetadata: metadata });
-    printToLog();
+    metadata[index === 0 ? "request" : "response"] = { name: dk.decl?.getName() as string, path: payloadSourceFile.getFilePath(), structure: typeFields };
   }
-  printToLog();
-}
+};
+
+// Parse JsDoc text
+const parseJsDocText = (texts: any[]) => {
+  const text = texts.length > 0 ? texts[0].text : "";
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+};
+
+// /**
+//  * Resolves and instantiates functions (gateway or use case), including their dependencies and middlewares.
+//  * @param metadatas - Array of function metadata.
+//  * @param middlewareMetadatas - Array of middleware function metadata.
+//  * @param funcMap - Map of function names to their metadata and declarations.
+//  * @param funcResultMap - Map to store the results and metadata of resolved functions.
+//  * @param isUseCase - Boolean indicating whether to resolve use case functions.
+//  */
+// async function resolveFunctions(
+//   metadatas: FuncMetadata[],
+//   middlewareMetadatas: FuncMetadata[],
+//   funcMap: Map<string, FuncDeclMetadata>,
+//   funcResultMap: Map<string, FuncInstanceMetadata>,
+//   isUseCase: boolean
+// ) {
+//   for (const metadata of metadatas) {
+//     const funcDecl = funcMap.get(metadata.name)?.funcDeclaration as FunctionDeclaration;
+//     printToLog("  funcDecl          :", funcDecl.getName());
+
+//     if (isUseCase) {
+//       const aliasSourceFile = getTypeDeclarationSourceFile(funcDecl.getSourceFile(), metadata.name);
+//       printToLog("  aliasSourceFile   :", aliasSourceFile.getFilePath());
+
+//       const aliasDecl = aliasSourceFile.getTypeAlias(metadata.name);
+//       if (!aliasDecl) continue;
+//       printToLog("  aliasDecl         :", aliasDecl?.getText());
+
+//       const typeNode = aliasDecl.getTypeNode();
+//       if (!typeNode) continue;
+//       printToLog("  typeNode          :", typeNode.getText());
+
+//       const typeReferenceNode = typeNode.asKindOrThrow(ts.SyntaxKind.TypeReference);
+//       printToLog("  typeReferenceNode :", typeReferenceNode.getText());
+
+//       const typeArguments = typeReferenceNode.getTypeArguments();
+
+//       typeArguments.forEach((typeArgument, index) => {
+//         printToLog("  typeArgumentKind  :", typeArgument.getKindName());
+
+//         if (typeArgument.getKind() === SyntaxKind.TypeReference) {
+//           printToLog("  typeArgumentText  :", typeArgument.getText(true));
+
+//           const payloadSourceFile = getTypeDeclarationSourceFile(aliasSourceFile, typeArgument.getText(true));
+//           printToLog("  payloadSourceFile :", payloadSourceFile.getFilePath());
+
+//           const dk = getDeclarationKind(payloadSourceFile, typeArgument.getText(true));
+
+//           if (dk) {
+//             const properties = dk.decl?.getType().getProperties()!;
+
+//             const typeFields = properties.map((prop) => {
+//               const name = prop.getName();
+//               const type = prop.getTypeAtLocation(aliasDecl).getText();
+
+//               const decorator = prop.getJsDocTags().map((doc) => {
+//                 const texts = doc.getText();
+
+//                 const text = texts.length > 0 ? texts[0].text : "";
+
+//                 try {
+//                   const jsonText = JSON.parse(text);
+//                   return { name: doc.getName(), data: jsonText };
+//                 } catch {
+//                   return { name: doc.getName(), data: text };
+//                 }
+//               });
+
+//               return { name, type, decorators: decorator } as TypeField;
+//             });
+
+//             metadata[index === 0 ? "request" : "response"] = {
+//               name: dk.decl?.getName() as string,
+//               path: payloadSourceFile.getFilePath(),
+//               structure: typeFields,
+//             };
+//           }
+//         } else if (typeArgument.getKind() === SyntaxKind.TypeLiteral) {
+//           // Handle TypeLiteral case
+//         } else {
+//           // throw new Error("the type should be Reference or Literal");
+//         }
+//       });
+//     }
+
+//     const module = await import(funcDecl.getSourceFile().getFilePath());
+//     const funcName = funcDecl.getName() as string;
+//     const paramHandlers = getParameterHandler(funcDecl, funcResultMap);
+
+//     let currentResult = module[funcName](...paramHandlers);
+
+//     for (const middlewareMetadata of middlewareMetadatas) {
+//       const middlewareHandler = funcResultMap.get(middlewareMetadata.name)?.funcInstance;
+//       currentResult = middlewareHandler(currentResult, metadata);
+//     }
+
+//     funcResultMap.set(metadata.name, { funcInstance: currentResult, funcMetadata: metadata });
+//   }
+//   printToLog();
+// }
 
 /**
  * Scans the project for functions, sorts them by kind, resolves their dependencies and middlewares, and returns the results.
@@ -476,10 +538,10 @@ export async function scanFunctions(project: Project) {
   await resolveMiddlewareFunctions(middlewareMetadatas, funcMap, funcResultMap);
 
   printToLog("resolve gateway");
-  await resolveGatewayFunctions(gatewayMetadatas, middlewareMetadatas, funcMap, funcResultMap);
+  await resolveFunctions(useCaseMetadatas, middlewareMetadatas, funcMap, funcResultMap, false);
 
   printToLog("resolve useCase");
-  await resolveUseCaseFunctions(useCaseMetadatas, middlewareMetadatas, funcMap, funcResultMap);
+  await resolveFunctions(useCaseMetadatas, middlewareMetadatas, funcMap, funcResultMap, true);
 
   return funcResultMap;
 }

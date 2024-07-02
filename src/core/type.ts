@@ -32,5 +32,5 @@ export const InjectableDecorator = ["Config", "Middleware", "Gateway", "UseCase"
 export type TypeField = {
   name: string;
   type: "string" | "number" | "integer" | "array" | "boolean" | "null" | "object";
-  decorator: Decorator[];
+  decorators: Decorator[];
 };

@@ -31,5 +31,5 @@ export function implSavePerson(ds: DataSource): SavePerson {
  * @Action
  */
 export function implGenerateRandomId(): GenerateRandomId {
-  return async (ctx, req) => uuidv4();
+  return async () => uuidv4();
 }

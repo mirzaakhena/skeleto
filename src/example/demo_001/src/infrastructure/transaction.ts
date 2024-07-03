@@ -5,7 +5,7 @@ import winston from "winston";
 
 /**
  *
- * @Middleware { "ordinal": 2 }
+ * @Wrapper { "ordinal": 2 }
  */
 export function implTransaction(ds: DataSource, log: winston.Logger): Transaction {
   //

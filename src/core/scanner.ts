@@ -155,11 +155,11 @@ function extractFunctions(project: Project): Map<string, FuncDeclMetadata> {
 /**
  * Sorts functions by their kind using a dependency resolver.
  * @param funcMap - A map of function names to their metadata and declarations.
- * @returns An object containing arrays of functions sorted by their kinds: config, middleware, and action handlers.
+ * @returns An object containing arrays of functions sorted by their kinds: config, wrapper, and action handlers.
  */
 function sortFunctionsByKind(funcMap: Map<string, FuncDeclMetadata>) {
   const configMetadatas: FuncMetadata[] = [];
-  const middlewareMetadatas: FuncMetadata[] = [];
+  const wrapperMetadatas: FuncMetadata[] = [];
   const actionMetadatas: FuncMetadata[] = [];
 
   const nameAndDeps = Array.from(funcMap.values()).map((x) => ({ name: x.funcMetadata.name, dependencies: x.funcMetadata.dependencies }));
@@ -178,8 +178,8 @@ function sortFunctionsByKind(funcMap: Map<string, FuncDeclMetadata>) {
       return;
     }
 
-    if (fm?.mainDecorator.name === "Middleware") {
-      middlewareMetadatas.push(fm);
+    if (fm?.mainDecorator.name === "Wrapper") {
+      wrapperMetadatas.push(fm);
       return;
     }
 
@@ -191,16 +191,16 @@ function sortFunctionsByKind(funcMap: Map<string, FuncDeclMetadata>) {
 
   printToLog();
 
-  return { configMetadatas, middlewareMetadatas, actionMetadatas };
+  return { configMetadatas, wrapperMetadatas, actionMetadatas };
 }
 
 /**
- * Resolves and instantiates config and middleware functions with their dependencies.
- * @param metadatas - Array of middleware function metadata.
+ * Resolves and instantiates config and wrapper functions with their dependencies.
+ * @param metadatas - Array of wrapper function metadata.
  * @param funcMap - Map of function names to their metadata and declarations.
  * @param funcResultMap - Map to store the results and metadata of resolved functions.
  */
-async function resolveConfigAndMiddlewareFunctions(metadatas: FuncMetadata[], funcMap: Map<string, FuncDeclMetadata>, funcResultMap: Map<string, FuncInstanceMetadata>) {
+async function resolveConfigAndWrapperFunctions(metadatas: FuncMetadata[], funcMap: Map<string, FuncDeclMetadata>, funcResultMap: Map<string, FuncInstanceMetadata>) {
   for (const metadata of metadatas) {
     const funcDecl = funcMap.get(metadata.name)?.funcDeclaration as FunctionDeclaration;
 
@@ -222,7 +222,7 @@ async function resolveConfigAndMiddlewareFunctions(metadatas: FuncMetadata[], fu
 // Resolve functions (gateway or use case)
 const resolveActionFunctions = async (
   metadatas: FuncMetadata[],
-  middlewareMetadatas: FuncMetadata[],
+  wrapperMetadatas: FuncMetadata[],
   funcMap: Map<string, FuncDeclMetadata>,
   funcResultMap: Map<string, FuncInstanceMetadata>
 ) => {
@@ -240,7 +240,7 @@ const resolveActionFunctions = async (
     const paramHandlers = getParameterHandler(funcDecl, funcResultMap);
 
     let currentResult = module[funcName](...paramHandlers);
-    currentResult = applyMiddlewares(currentResult, metadata, middlewareMetadatas, funcResultMap);
+    currentResult = applyWrappers(currentResult, metadata, wrapperMetadatas, funcResultMap);
 
     funcResultMap.set(metadata.name, { funcInstance: currentResult, funcMetadata: metadata });
   }
@@ -305,12 +305,12 @@ function getTypeDeclarationSourceFile(sourceFile: SourceFile, typeName: string):
   throw new Error(`Type ${typeName} not found at ${sourceFile.getFilePath()}`);
 }
 
-// Apply middlewares
-const applyMiddlewares = (currentResult: any, metadata: FuncMetadata, middlewareMetadatas: FuncMetadata[], funcResultMap: Map<string, FuncInstanceMetadata>) => {
-  const sortBasedOrdinal = middlewareMetadatas.sort((a, b) => ((a.mainDecorator.data.ordinal ?? 0) as number) - ((b.mainDecorator.data.ordinal ?? 0) as number));
-  for (const middlewareMetadata of sortBasedOrdinal) {
-    const middlewareHandler = funcResultMap.get(middlewareMetadata.name)?.funcInstance;
-    currentResult = middlewareHandler(currentResult, metadata);
+// Apply wrappers
+const applyWrappers = (currentResult: any, metadata: FuncMetadata, wrapperMetadatas: FuncMetadata[], funcResultMap: Map<string, FuncInstanceMetadata>) => {
+  const sortBasedOrdinal = wrapperMetadatas.sort((a, b) => ((a.mainDecorator.data.ordinal ?? 0) as number) - ((b.mainDecorator.data.ordinal ?? 0) as number));
+  for (const wrapperMetadata of sortBasedOrdinal) {
+    const wrapperHandler = funcResultMap.get(wrapperMetadata.name)?.funcInstance;
+    currentResult = wrapperHandler(currentResult, metadata);
   }
   return currentResult;
 };
@@ -390,7 +390,7 @@ const parseJsDocText = (texts: any[]) => {
 };
 
 /**
- * Scans the project for functions, sorts them by kind, resolves their dependencies and middlewares, and returns the results.
+ * Scans the project for functions, sorts them by kind, resolves their dependencies and wrappers, and returns the results.
  * @param project - The project containing the source files.
  * @returns A map of function names to their resolved instances and metadata.
  */
@@ -401,18 +401,18 @@ export async function scanFunctions(project: Project) {
   const funcMap = extractFunctions(project);
 
   printToLog("sort by dependencies");
-  const { configMetadatas, middlewareMetadatas, actionMetadatas } = sortFunctionsByKind(funcMap);
+  const { configMetadatas, wrapperMetadatas, actionMetadatas } = sortFunctionsByKind(funcMap);
 
   const funcResultMap: Map<string, FuncInstanceMetadata> = new Map();
 
   printToLog("resolve config");
-  await resolveConfigAndMiddlewareFunctions(configMetadatas, funcMap, funcResultMap);
+  await resolveConfigAndWrapperFunctions(configMetadatas, funcMap, funcResultMap);
 
-  printToLog("resolve middleware");
-  await resolveConfigAndMiddlewareFunctions(middlewareMetadatas, funcMap, funcResultMap);
+  printToLog("resolve wrapper");
+  await resolveConfigAndWrapperFunctions(wrapperMetadatas, funcMap, funcResultMap);
 
   printToLog("resolve action");
-  await resolveActionFunctions(actionMetadatas, middlewareMetadatas, funcMap, funcResultMap);
+  await resolveActionFunctions(actionMetadatas, wrapperMetadatas, funcMap, funcResultMap);
 
   return funcResultMap;
 }
@@ -430,7 +430,7 @@ const badgeColorForKind = (kind: TypeOf<typeof InjectableDecorator>) => {
     return `${fgGreen}${kind}${reset}`; //
   }
 
-  if (kind === "Middleware") {
+  if (kind === "Wrapper") {
     return `${fgBlue}${kind}${reset}`; //
   }
 

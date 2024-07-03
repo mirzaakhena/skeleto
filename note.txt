@@ -1,0 +1,68 @@
+Type
+
+Context
+
+ActionHandler
+
+Request
+
+Response
+
+Closure
+
+Closure Return Value as Function Name
+
+Dependency Injection In @Config, @Wrapper, @Action
+
+Decorator and Decorator data
+
+Controller -> Primary Action -> Secondary Action
+
+@Wrapper
+  What
+  Where
+  Decorator Pattern
+  Struktur
+  3 Stage
+  Conditional Inject
+  ordinal: 0 
+  WrapperHandler
+  Example: Logging, Transaction, Recorder
+
+@Action
+  What
+  Where
+  Struktur
+  2 Stage
+  readTypeArguments: true
+  ActionHandler
+  UseCase and Gateway Concept
+
+@Config
+  What
+  Where
+  Struktur
+  1 Stage
+  Example: Database object, Logger Object
+
+Instantiation Order : @Config, @Wrapper, @Action 
+
+Manual Injection
+
+Automatic Injection
+
+Testing
+
+Recording and Replay
+
+OpenAPI
+
+Controller with Express
+
+Using getDataSourceFromContext method
+
+Database Transaction
+
+Auto Repository
+
+AI Code Generated

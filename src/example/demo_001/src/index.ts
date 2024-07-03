@@ -22,7 +22,7 @@ async function main() {
   const port = 3001;
   const router = express.Router();
 
-  const usecases = Array.from(application.getContainer().values()) //
+  const usecases = Array.from(application.getContainer().values()) // //
     .filter((x) => x.funcMetadata.additionalDecorators.some((y) => y.name === "Controller"));
 
   generateController(router, usecases);

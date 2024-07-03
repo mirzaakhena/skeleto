@@ -1,4 +1,4 @@
-import { MiddlewareHandler } from "../core/type";
+import { WrapperHandler } from "../core/type";
 
 type Whatever<REQUEST = any, RESPONSE = any> = (r: REQUEST) => Promise<RESPONSE>;
 
@@ -49,12 +49,12 @@ type FirstParam = {};
 
 type SecondParam = {};
 
-type Logger = MiddlewareHandler;
+type Logger = WrapperHandler;
 
 /**
- * @Middleware
+ * @Wrapper
  */
-export function implMyMiddleware(): Logger {
+export function implMyWrapper(): Logger {
   return (ah, fm) => {
     return ah;
   };

@@ -6,7 +6,7 @@ export type Context<T extends Record<string, any> = Record<string, any>> = {
 
 export type ActionHandler<REQUEST = any, RESPONSE = any> = (ctx: Context, request: REQUEST) => Promise<RESPONSE>;
 
-export type MiddlewareHandler = (actionHandler: ActionHandler, functionMetadata: FuncMetadata) => ActionHandler;
+export type WrapperHandler = (actionHandler: ActionHandler, functionMetadata: FuncMetadata) => ActionHandler;
 
 export type FuncInstanceMetadata = { funcInstance: any; funcMetadata: FuncMetadata };
 
@@ -25,7 +25,7 @@ export type TypeOf<T extends readonly any[]> = T[number];
 
 export type Decorator = { name: string; data: any };
 
-export const InjectableDecorator = ["Config", "Middleware", "Action"] as const;
+export const InjectableDecorator = ["Config", "Wrapper", "Action"] as const;
 
 export type TypeField = {
   name: string;

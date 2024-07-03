@@ -1,11 +1,11 @@
-import { ActionHandler, MiddlewareHandler } from "skeleto";
+import { ActionHandler, WrapperHandler } from "skeleto";
 import { Person } from "./model_person.js";
 
 // define transaction
-export type Transaction = MiddlewareHandler;
+export type Transaction = WrapperHandler;
 
 // define logger
-export type Logger = MiddlewareHandler;
+export type Logger = WrapperHandler;
 
 // define request type
 type FindOnePersonByEmailRequest = {

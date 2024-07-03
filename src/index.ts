@@ -2,7 +2,7 @@ export {
   //
   Context,
   ActionHandler,
-  MiddlewareHandler,
+  WrapperHandler,
   Decorator,
   FuncInstanceMetadata,
   FuncMetadata,

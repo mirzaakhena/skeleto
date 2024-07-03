@@ -14,7 +14,7 @@ export type FuncMetadata = {
   name: string;
   dependencies: string[];
 
-  mainDecorator: { name: TypeOf<typeof InjectableDecorator>; data: any };
+  mainDecorator: Decorator<TypeOf<typeof InjectableDecorator>>;
   additionalDecorators: Decorator[];
 
   request?: { name: string; path: string; structure: TypeField[] };
@@ -23,7 +23,7 @@ export type FuncMetadata = {
 
 export type TypeOf<T extends readonly any[]> = T[number];
 
-export type Decorator = { name: string; data: any };
+export type Decorator<T = string> = { name: T; data: any };
 
 export const InjectableDecorator = ["Config", "Wrapper", "Action"] as const;
 

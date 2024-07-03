@@ -137,7 +137,7 @@ function extractFunctions(project: Project): Map<string, FuncDeclMetadata> {
       const meta: FuncMetadata = {
         name: functionReturnTypeName,
         dependencies,
-        mainDecorator: mainDecorator as { name: TypeOf<typeof InjectableDecorator>; data: any },
+        mainDecorator: mainDecorator as Decorator<TypeOf<typeof InjectableDecorator>>,
         additionalDecorators,
       };
 

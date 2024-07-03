@@ -1,3 +1,9 @@
+Framework is not about HTTP Protocol or is not about database connection
+
+Framework is about 
+  - how you organize your code
+  - how the code work together
+
 Type
 
 Context
@@ -12,27 +18,29 @@ Closure
 
 Closure Return Value as Function Name
 
-Dependency Injection In @Config, @Wrapper, @Action
+JSDoc
 
-Decorator and Decorator data
+JSDoc as Decorator
 
-Controller -> Primary Action -> Secondary Action
+Decorator data
 
-@Wrapper
-  What
-  Where
-  Decorator Pattern
-  Struktur
-  3 Stage
-  Conditional Inject
-  ordinal: 0 
-  WrapperHandler
-  Example: Logging, Transaction, Recorder
+Controller -> Service -> Repository
+
+Controller -> Primary Action (UseCase) -> Secondary Action (Gateway)
+
+Why not putting all together Controller Usecase and Gateway in one function? Because there is reusable function
+
+Why using type of function instead of interface ? Because we want to apply segregation of interface and avoid fat interface
+
+Dependency Injection 
+  Function
+  Function Parameter
+  Client Code to inject the Object to Function through Function Parameter
 
 @Action
   What
   Where
-  Struktur
+  Structure
   2 Stage
   readTypeArguments: true
   ActionHandler
@@ -41,15 +49,28 @@ Controller -> Primary Action -> Secondary Action
 @Config
   What
   Where
-  Struktur
+  Structure
   1 Stage
   Example: Database object, Logger Object
 
+@Wrapper
+  What
+  Where
+  Decorator Pattern
+  Structure
+  3 Stage
+  Conditional Inject
+  ordinal: 0 
+  WrapperHandler
+  Example: Logging, Transaction, Recorder
+
+Dependency Injection In @Action, @Config, @Wrapper,   
+
+Manual Injection Code
+
+Automatic Injection Code 
+
 Instantiation Order : @Config, @Wrapper, @Action 
-
-Manual Injection
-
-Automatic Injection
 
 Testing
 
@@ -66,3 +87,4 @@ Database Transaction
 Auto Repository
 
 AI Code Generated
+

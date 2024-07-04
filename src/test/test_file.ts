@@ -2,11 +2,23 @@ import { WrapperHandler } from "../core/type";
 
 type Whatever<REQUEST = any, RESPONSE = any> = (r: REQUEST) => Promise<RESPONSE>;
 
-type Request = {
+type Person = {
+  gggg: string;
+};
+
+/**
+ * @ThisIsDecoratorInRequest {"bobo": "aaa"}
+ */
+class Request {
   /**
    * @Aaaa {}
    */
   name: string;
+
+  /**
+   * @XPersonX
+   */
+  person: Person;
 
   /**
    * @Xyz {"}
@@ -19,25 +31,32 @@ type Request = {
   aaaaa: {
     bbbbbb: number[];
   };
-};
+}
 
 type Response = {};
 
+/**
+ * @DecoratorReturnType {"theData": "what"}
+ */
 type ReturnType = Whatever<Request, Response>;
 
 type AnotherReturnType = Whatever<
   {
     /**
-     * @Something
+     * @Something {"xxx":"zzz"}
      */
     name: string;
     address: string;
+
+    /**
+     * @boaboab {
+     */
     hobbies: string[];
   },
   {
     id: string[];
     /**
-     * @AnotherThing {"abc": "hello"}
+     * @AnotherThing {"abc": { "q": [{"x": 1, "o": true}], "r": {"mo": false, "v": null}}}
      */
     payload: {
       anotherField: number[];

@@ -47,7 +47,7 @@ type Request = {
   /**
    * @RequestPart query
    */
-  page: number;
+  page2: { xyz: number; abc: string; ppp: boolean };
 
   /**
    * @RequestPart query
@@ -57,7 +57,7 @@ type Request = {
   /**
    * @RequestPart param
    */
-  something: "aaa" | "bbb" | 20;
+  something: { pqr: string; n: "aaa" | "bbb" | 20 }; //;
 };
 
 // define response type

@@ -1,4 +1,4 @@
-import { FunctionDeclaration, JSDoc, Node, Project, SourceFile, SyntaxKind, ts, TypeNode, TypeReferenceNode } from "ts-morph";
+import { FunctionDeclaration, JSDoc, Node, Project, SourceFile, SyntaxKind, ts, TypeAliasDeclaration, TypeNode, TypeReferenceNode } from "ts-morph";
 import { DependencyResolver } from "./dependency_resolver.js";
 import { Decorator, FuncInstanceMetadata, FuncMetadata, InjectableDecorator, TypeField, TypeOf } from "./type.js";
 
@@ -28,43 +28,52 @@ function getParameterHandler(funcDecl: FunctionDeclaration, funcResultMap: Map<s
   return paramHandlers;
 }
 
-/**
- *
- * @param jsDocs
- * @returns
- */
-function getDecoratorMetadata(jsDocs: JSDoc[]) {
-  const decorators: Decorator[] = [];
+function getDecoratorMetadata(jsDocs: string[], source?: string) {
+  const decorators: any[] = [];
+
+  const pushDecorator = (currentDecorator: { name: string; data?: string }) => {
+    try {
+      // If the data is a valid JSON string, parse it
+      if (currentDecorator.data?.startsWith("{")) {
+        decorators.push({
+          name: currentDecorator.name,
+          data: JSON.parse(currentDecorator.data),
+        });
+      } else {
+        // If the data is plain text
+        decorators.push({
+          name: currentDecorator.name,
+          data: currentDecorator.data?.trim(),
+        });
+      }
+    } catch (e) {
+      console.warn(`warning: in ${source} decorator ${currentDecorator.name} has invalid JSON`);
+      decorators.push({ name: currentDecorator.name, data: currentDecorator.data });
+    }
+  };
 
   jsDocs.forEach((jsDoc) => {
-    const innerText = jsDoc.getInnerText();
+    const innerText = jsDoc;
     const lines = innerText.split("\n");
     let currentDecorator: { name: string; data?: string } = { name: "", data: "" };
     let hasDecorator = false;
 
     lines.forEach((line) => {
-      const match = line.match(/@(\w+)\s*(\{.*)?/);
+      const match = line.match(/@(\w+)\s*(.*)?/);
       if (match) {
         if (hasDecorator) {
-          try {
-            decorators.push({ name: currentDecorator.name, data: currentDecorator.data ? JSON.parse(currentDecorator.data) : undefined });
-          } catch (e) {
-            decorators.push({ name: currentDecorator.name, data: undefined });
-          }
+          pushDecorator(currentDecorator);
         }
+
         currentDecorator = { name: match[1], data: match[2] || "" };
         hasDecorator = true;
       } else if (hasDecorator) {
-        currentDecorator.data += line.trim();
+        currentDecorator.data += " " + line.trim();
       }
     });
 
     if (hasDecorator) {
-      try {
-        decorators.push({ name: currentDecorator.name, data: currentDecorator.data ? JSON.parse(currentDecorator.data) : undefined });
-      } catch (e) {
-        decorators.push({ name: currentDecorator.name, data: undefined });
-      }
+      pushDecorator(currentDecorator);
     }
   });
 
@@ -81,10 +90,10 @@ const reset = "\x1b[0m";
 
 const fgRed = "\x1b[31m";
 const fgGreen = "\x1b[32m";
+const fgYellow = "\x1b[33m";
 const fgBlue = "\x1b[34m";
 // const fgMagenta = "\x1b[35m";
 // const fgBlack = "\x1b[30m";
-// const fgYellow = "\x1b[33m";
 // const fgCyan = "\x1b[36m";
 // const fgWhite = "\x1b[37m";
 
@@ -119,7 +128,10 @@ function extractFunctions(project: Project): Map<string, FuncDeclMetadata> {
       const functionReturnTypeName = getFunctionReturnTypeName(returnTypeNode);
       if (funcMap.has(functionReturnTypeName)) return;
 
-      const decorators = getDecoratorMetadata(func.getJsDocs());
+      const decorators = getDecoratorMetadata(
+        func.getJsDocs().map((x) => x.getInnerText()),
+        `function ${funcName}`
+      );
       if (!decorators.some((x) => InjectableDecorator.some((y) => y === x.name))) return;
 
       let mainDecorator = {};
@@ -204,7 +216,7 @@ async function resolveConfigAndWrapperFunctions(metadatas: FuncMetadata[], funcM
   for (const metadata of metadatas) {
     const funcDecl = funcMap.get(metadata.name)?.funcDeclaration as FunctionDeclaration;
 
-    printToLog("  funcDecl          :", funcDecl.getName());
+    printToLog("  funcDecl             :", funcDecl.getName());
 
     const module = await import(funcDecl.getSourceFile().getFilePath());
 
@@ -228,7 +240,7 @@ const resolveActionFunctions = async (
 ) => {
   for (const metadata of metadatas) {
     const funcDecl = funcMap.get(metadata.name)?.funcDeclaration as FunctionDeclaration;
-    printToLog("  funcDecl          :", funcDecl.getName());
+    printToLog("  funcDecl             :", funcDecl.getName());
 
     if (metadata.mainDecorator.data?.["readTypeArguments"]) {
       await extractUseCaseMetadata(funcDecl, metadata);
@@ -255,19 +267,19 @@ function getDeclarationKind(sourceFile: SourceFile, structureName: string) {
 
       //
       if (Node.isTypeAliasDeclaration(child) && child.getName() === structureName) {
-        return { decl: sourceFile.getTypeAlias(structureName), kind: SyntaxKind.TypeAliasDeclaration };
+        return { decl: sourceFile.getTypeAlias(structureName), kind: SyntaxKind.TypeAliasDeclaration, child };
 
         //
       } else if (Node.isClassDeclaration(child) && child.getName() === structureName) {
-        return { decl: sourceFile.getClass(structureName), kind: SyntaxKind.ClassDeclaration };
+        return { decl: sourceFile.getClass(structureName), kind: SyntaxKind.ClassDeclaration, child };
 
         //
       } else if (Node.isInterfaceDeclaration(child) && child.getName() === structureName) {
-        return { decl: sourceFile.getInterface(structureName), kind: SyntaxKind.InterfaceDeclaration };
+        return { decl: sourceFile.getInterface(structureName), kind: SyntaxKind.InterfaceDeclaration, child };
 
         //
       } else if (Node.isEnumDeclaration(child) && child.getName() === structureName) {
-        return { decl: sourceFile.getEnum(structureName), kind: SyntaxKind.EnumDeclaration };
+        return { decl: sourceFile.getEnum(structureName), kind: SyntaxKind.EnumDeclaration, child };
 
         //
       }
@@ -318,38 +330,52 @@ const applyWrappers = (currentResult: any, metadata: FuncMetadata, wrapperMetada
 // Extract metadata for use cases
 const extractUseCaseMetadata = async (funcDecl: FunctionDeclaration, metadata: FuncMetadata) => {
   const aliasSourceFile = getTypeDeclarationSourceFile(funcDecl.getSourceFile(), metadata.name);
-  printToLog("  aliasSourceFile   :", aliasSourceFile.getFilePath()); // /Users/mirza/Workspace/skeleto-demo001/src/app/types.ts
+  printToLog("  aliasSourceFile      :", aliasSourceFile.getFilePath()); // /Users/username/Workspace/projectname/src/app/types.ts
 
   const aliasDecl = aliasSourceFile.getTypeAlias(metadata.name);
   if (!aliasDecl) return;
-  printToLog("  aliasDecl         :", aliasDecl?.getText()); // export type RegisterUniquePerson = UseCaseHandler<Request, Response>;
+  printToLog("  aliasDecl            :", aliasDecl?.getText()); // export type RegisterUniquePerson = ActionHandler<Request, Response>;
+
+  const returnTypeDecorators = getDecoratorMetadata(
+    aliasDecl.getJsDocs().map((x) => x.getInnerText()),
+    `'${aliasDecl?.getText()}'`
+  );
+  printToLog("  returnTypeDecorators :", JSON.stringify(returnTypeDecorators));
 
   const typeNode = aliasDecl.getTypeNode();
   if (!typeNode) return;
-  printToLog("  typeNode          :", typeNode.getText()); // UseCaseHandler<Request, Response>
+  printToLog("  typeNode             :", typeNode.getText()); // ActionHandler<Request, Response>
+
+  metadata.returnTypeDecorator = returnTypeDecorators;
 
   const typeReferenceNode = typeNode.asKindOrThrow(ts.SyntaxKind.TypeReference);
-  printToLog("  typeReferenceNode :", typeReferenceNode.getText()); // UseCaseHandler<Request, Response>
+  printToLog("  typeReferenceNode    :", typeReferenceNode.getText()); // ActionHandler<Request, Response>
 
   const typeArguments = typeReferenceNode.getTypeArguments();
+
+  // handle each Request in index-0 and Response in index-1
   typeArguments.forEach((typeArgument, index) => {
     handleTypeArgument(typeArgument, index, aliasSourceFile, metadata, aliasDecl);
   });
 };
 
 // Handle Type arguments
-const handleTypeArgument = (typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata, aliasDecl: any) => {
-  printToLog("  typeArgumentKind  :", typeArgument.getKindName()); // TypeReference
+const handleTypeArgument = (typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata, aliasDecl: TypeAliasDeclaration) => {
+  printToLog("  typeArgumentKind     :", typeArgument.getKindName()); // TypeReference
 
   if (typeArgument.getKind() === SyntaxKind.TypeReference) {
-    handleTypeReferenceArgument(typeArgument, index, aliasSourceFile, metadata, aliasDecl);
+    handleTypeReferenceArgument(typeArgument, index, aliasSourceFile, metadata);
+
   } else if (typeArgument.getKind() === SyntaxKind.TypeLiteral) {
     const typeFields: any[] = [];
     typeArgument.forEachChild((child) => {
       if (Node.isPropertySignature(child)) {
         const name = child.getName();
         const type = child.getType().getText();
-        const decorator = getDecoratorMetadata(child.getJsDocs());
+        const decorator = getDecoratorMetadata(
+          child.getJsDocs().map((x) => x.getInnerText()),
+          `${name}`
+        );
         typeFields.push({ name, type, decorator });
       }
     });
@@ -360,32 +386,53 @@ const handleTypeArgument = (typeArgument: TypeNode<ts.TypeNode>, index: number, 
 };
 
 // Handle TypeReference arguments
-const handleTypeReferenceArgument = (typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata, aliasDecl: any) => {
-  printToLog("  typeArgumentText  :", typeArgument.getText(true)); // Request / Response
+const handleTypeReferenceArgument = (typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata) => {
+  // {
+  // console.log(">>>>>>", typeArgument.getText());
+
+  const aliasDecl = aliasSourceFile.getTypeAlias(typeArgument.getText()); // type Request = { name: string, age: number }
+
+  // console.log(">>>>>>", aliasDecl?.getText());
+
+  const typeLiteral = aliasDecl?.getTypeNode()?.asKind(SyntaxKind.TypeLiteral); //{ name: string, age: number}
+
+  // console.log(">", typeLiteral?.getText());
+
+  const typeFields: any[] = [];
+  typeLiteral?.getProperties().forEach((ps) => {
+    const name = ps.getName(); // name
+    const type = ps.getType().getText(); // string
+    const decorators = getDecoratorMetadata(
+      // metadata of name: string
+      ps.getJsDocs().map((x) => x.getInnerText()),
+      `${name}`
+    );
+
+    typeFields.push({ name, type, decorators });
+  });
 
   const payloadSourceFile = getTypeDeclarationSourceFile(aliasSourceFile, typeArgument.getText(true));
-  printToLog("  payloadSourceFile :", payloadSourceFile.getFilePath()); // /Users/mirza/Workspace/skeleto-demo001/src/app/types.ts
+  printToLog("  payloadSourceFile    :", payloadSourceFile.getFilePath()); // /Users/username/Workspace/projectname/src/app/types.ts
 
   const dk = getDeclarationKind(payloadSourceFile, typeArgument.getText(true));
-  if (dk) {
-    const properties = dk.decl?.getType().getProperties()!;
-    const typeFields = properties.map((prop) => {
-      const name = prop.getName();
-      const type = prop.getTypeAtLocation(aliasDecl).getText();
-      const decorator = prop.getJsDocTags().map((doc) => ({ name: doc.getName(), data: parseJsDocText(doc.getText()) }));
-      return { name, type, decorators: decorator } as TypeField;
-    });
-    metadata[index === 0 ? "request" : "response"] = { name: dk.decl?.getName() as string, path: payloadSourceFile.getFilePath(), structure: typeFields };
-  }
-};
 
-// Parse JsDoc text
-const parseJsDocText = (texts: any[]) => {
-  const text = texts.length > 0 ? texts[0].text : "";
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
+  if (dk) {
+    let typeDecorator: Decorator[] = [];
+    if (dk.decl) {
+      typeDecorator = getDecoratorMetadata(
+        // metadata for Request
+        dk.decl.getJsDocs().map((x) => x.getInnerText()),
+        typeArgument.getText(true)
+      );
+      printToLog("  typeDecorator     :", JSON.stringify(typeDecorator));
+    }
+
+    metadata[index === 0 ? "request" : "response"] = {
+      name: typeArgument.getText(), // Request
+      path: payloadSourceFile.getFilePath(),
+      structure: typeFields,
+      decorators: typeDecorator,
+    };
   }
 };
 

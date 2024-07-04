@@ -1,5 +1,5 @@
-export type Context<T extends Record<string, any> = Record<string, any>> = {
-  data: T;
+export type Context = {
+  data: Record<string, any>;
   traceId: string;
   date: Date;
 };

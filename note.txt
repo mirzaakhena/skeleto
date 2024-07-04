@@ -8,21 +8,22 @@ Type
 
 Context
 
-ActionHandler
-
-Request
-
-Response
+ActionHandler, Request, Response
 
 Closure
 
-Closure Return Value as Function Name
+
+
+Currently function does not support decorator that's why we can utilize the JSDoc as a decorator
 
 JSDoc
 
 JSDoc as Decorator
 
 Decorator data
+
+
+Closure Return Value as Function Name
 
 Controller -> Service -> Repository
 

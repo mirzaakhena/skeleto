@@ -6,23 +6,6 @@ import { ActionHandler, FuncInstanceMetadata } from "../core/type.js";
 import { before } from "node:test";
 
 describe("Function Utilities", () => {
-  // let project: Project;
-  // beforeEach(() => {
-  //   project = new Project();
-  //   project.addSourceFilesAtPaths(`src/test/*.ts`);
-  // });
-  // it("should scanFunctions", async () => {
-  //   const result = await scanFunctions(project);
-  //   expect(Array.from(result.keys())).toEqual([
-  //     //
-  //     "FirstParam",
-  //     "SecondParam",
-  //     "Logger",
-  //     "ReturnType",
-  //     "AnotherReturnType",
-  //   ]);
-  //   console.log(JSON.stringify(Array.from(result.values())));
-  // });
 
   let containers: Map<string, FuncInstanceMetadata>;
 

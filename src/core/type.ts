@@ -25,7 +25,7 @@ export type FuncMetadata = {
   additionalDecorators: Decorator[];
 
   /**
-   * is a decorators used in return type definition
+   * is a decorators used in return type definition like `type ReturnFunc01 = ActionHandler<Request, Response>;`
    */
   returnTypeDecorator?: Decorator[];
 

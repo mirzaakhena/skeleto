@@ -107,3 +107,4 @@ export function func04(): MyTransaction {
     };
   };
 }
+

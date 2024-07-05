@@ -9,4 +9,4 @@ export {
   WrapperHandler,
 } from "./core/type.js";
 
-export { Skeleto, newContext } from "./core/skeleto.js";
+export { newContext, Skeleto } from "./core/skeleto.js";

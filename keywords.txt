@@ -1,0 +1,60 @@
+different approach
+
+primary function and secondary function
+
+
+
+function secondary01 () {
+
+}
+
+function secondary02 () {
+  
+}
+
+function secondary03 () {
+  
+}
+
+function secondary04 () {
+  
+}
+
+function secondary05 () {
+  
+}
+
+
+function primary01() {
+
+  secondary01()
+
+  secondary02()
+
+  secondary03()
+
+}
+
+
+function primary02() {
+
+  secondary02()
+
+  secondary04()
+
+}
+
+function primary03() {
+
+  secondary01()
+
+  secondary03()
+
+  secondary05()
+
+}
+
+
+primary01, primary02, primary03
+
+secondary01, secondary02, secondary03, secondary04, secondary05

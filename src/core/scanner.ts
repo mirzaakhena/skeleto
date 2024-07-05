@@ -1,16 +1,16 @@
-import { FunctionDeclaration, JSDoc, Node, Project, SourceFile, SyntaxKind, ts, TypeAliasDeclaration, TypeNode, TypeReferenceNode } from "ts-morph";
+import { FunctionDeclaration, Node, Project, SourceFile, SyntaxKind, ts, TypeAliasDeclaration, TypeNode, TypeReferenceNode } from "ts-morph";
 import { DependencyResolver } from "./dependency_resolver.js";
-import { Decorator, FuncInstanceMetadata, FuncMetadata, InjectableDecorator, TypeField, TypeOf } from "./type.js";
+import { Decorator, FuncInstanceMetadata, FuncMetadata, InjectableDecorator, TypeOf } from "./type.js";
 
 type FuncDeclMetadata = { funcMetadata: FuncMetadata; funcDeclaration: FunctionDeclaration };
 
 type InjectableDecoratorType = TypeOf<typeof InjectableDecorator>;
 
-export function getFunctionReturnTypeName(returnTypeNode: TypeNode<ts.TypeNode> | undefined) {
+function getFunctionReturnTypeName(returnTypeNode: TypeNode<ts.TypeNode> | undefined) {
   return (returnTypeNode as TypeReferenceNode).getText();
 }
 
-export function getFunctionParameters(func: FunctionDeclaration) {
+function getFunctionParameters(func: FunctionDeclaration) {
   return func.getParameters().map((param) => getFunctionReturnTypeName(param.getTypeNode()));
 }
 
@@ -80,32 +80,6 @@ function getDecoratorMetadata(jsDocs: string[], source?: string) {
   return decorators;
 }
 
-// const bright = "\x1b[1m";
-// const dim = "\x1b[2m";
-// const underscore = "\x1b[4m";
-// const blink = "\x1b[5m";
-// const reverse = "\x1b[7m";
-// const hidden = "\x1b[8m";
-const reset = "\x1b[0m";
-
-const fgRed = "\x1b[31m";
-const fgGreen = "\x1b[32m";
-const fgYellow = "\x1b[33m";
-const fgBlue = "\x1b[34m";
-// const fgMagenta = "\x1b[35m";
-// const fgBlack = "\x1b[30m";
-// const fgCyan = "\x1b[36m";
-// const fgWhite = "\x1b[37m";
-
-// const bgBlack = "\x1b[40m";
-// const bgRed = "\x1b[41m";
-// const bgGreen = "\x1b[42m";
-// const bgYellow = "\x1b[43m";
-// const bgBlue = "\x1b[44m";
-// const bgMagenta = "\x1b[45m";
-// const bgCyan = "\x1b[46m";
-// const bgWhite = "\x1b[47m";
-
 /**
  * Extracts functions from the project source files and gathers their metadata.
  * @param project - The project containing the source files.
@@ -116,10 +90,11 @@ function extractFunctions(project: Project): Map<string, FuncDeclMetadata> {
 
   project.getSourceFiles().forEach((sourceFile) => {
     sourceFile.getFunctions().forEach((func) => {
+      //
+
       if (!func.isExported()) return;
 
       const funcName = func.getName();
-
       if (!funcName) return;
 
       const returnTypeNode = func.getReturnTypeNode();
@@ -206,58 +181,38 @@ function sortFunctionsByKind(funcMap: Map<string, FuncDeclMetadata>) {
   return { configMetadatas, wrapperMetadatas, actionMetadatas };
 }
 
-/**
- * Resolves and instantiates config and wrapper functions with their dependencies.
- * @param metadatas - Array of wrapper function metadata.
- * @param funcMap - Map of function names to their metadata and declarations.
- * @param funcResultMap - Map to store the results and metadata of resolved functions.
- */
-async function resolveConfigAndWrapperFunctions(metadatas: FuncMetadata[], funcMap: Map<string, FuncDeclMetadata>, funcResultMap: Map<string, FuncInstanceMetadata>) {
-  for (const metadata of metadatas) {
-    const funcDecl = funcMap.get(metadata.name)?.funcDeclaration as FunctionDeclaration;
-
-    printToLog("  funcDecl             :", funcDecl.getName());
-
-    const module = await import(funcDecl.getSourceFile().getFilePath());
-
-    const funcName = funcDecl.getName() as string;
-
-    const paramHandlers = getParameterHandler(funcDecl, funcResultMap);
-
-    const funcResult = module[funcName](...paramHandlers);
-
-    funcResultMap.set(metadata.name, { funcInstance: funcResult, funcMetadata: metadata });
-  }
-  printToLog();
-}
-
-// Resolve functions (gateway or use case)
-const resolveActionFunctions = async (
+// Resolve functions
+async function resolveFunctions(
   metadatas: FuncMetadata[],
-  wrapperMetadatas: FuncMetadata[],
   funcMap: Map<string, FuncDeclMetadata>,
-  funcResultMap: Map<string, FuncInstanceMetadata>
-) => {
-  for (const metadata of metadatas) {
-    const funcDecl = funcMap.get(metadata.name)?.funcDeclaration as FunctionDeclaration;
+  funcResultMap: Map<string, FuncInstanceMetadata>,
+  wrapperMetadatas?: FuncMetadata[]
+) {
+  for (const funcMetadata of metadatas) {
+    const funcDecl = funcMap.get(funcMetadata.name)?.funcDeclaration as FunctionDeclaration;
+
     printToLog("  funcDecl             :", funcDecl.getName());
 
-    if (metadata.mainDecorator.data?.["readTypeArguments"]) {
-      await extractUseCaseMetadata(funcDecl, metadata);
+    if (funcMetadata.mainDecorator.name === "Action" && funcMetadata.mainDecorator.data?.["readTypeArguments"]) {
+      await extractUseCaseMetadata(funcDecl, funcMetadata);
     }
 
     const module = await import(funcDecl.getSourceFile().getFilePath());
+
     const funcName = funcDecl.getName() as string;
 
     const paramHandlers = getParameterHandler(funcDecl, funcResultMap);
 
-    let currentResult = module[funcName](...paramHandlers);
-    currentResult = applyWrappers(currentResult, metadata, wrapperMetadatas, funcResultMap);
+    let funcInstance = module[funcName](...paramHandlers);
 
-    funcResultMap.set(metadata.name, { funcInstance: currentResult, funcMetadata: metadata });
+    if (wrapperMetadatas) {
+      funcInstance = applyWrappers(funcInstance, funcMetadata, wrapperMetadatas, funcResultMap);
+    }
+
+    funcResultMap.set(funcMetadata.name, { funcInstance, funcMetadata });
   }
   printToLog();
-};
+}
 
 function getDeclarationKind(sourceFile: SourceFile, structureName: string) {
   // Loop through the statements in the source file
@@ -318,17 +273,17 @@ function getTypeDeclarationSourceFile(sourceFile: SourceFile, typeName: string):
 }
 
 // Apply wrappers
-const applyWrappers = (currentResult: any, metadata: FuncMetadata, wrapperMetadatas: FuncMetadata[], funcResultMap: Map<string, FuncInstanceMetadata>) => {
+function applyWrappers(currentResult: any, metadata: FuncMetadata, wrapperMetadatas: FuncMetadata[], funcResultMap: Map<string, FuncInstanceMetadata>) {
   const sortBasedOrdinal = wrapperMetadatas.sort((a, b) => ((a.mainDecorator.data.ordinal ?? 0) as number) - ((b.mainDecorator.data.ordinal ?? 0) as number));
   for (const wrapperMetadata of sortBasedOrdinal) {
     const wrapperHandler = funcResultMap.get(wrapperMetadata.name)?.funcInstance;
     currentResult = wrapperHandler(currentResult, metadata);
   }
   return currentResult;
-};
+}
 
 // Extract metadata for use cases
-const extractUseCaseMetadata = async (funcDecl: FunctionDeclaration, metadata: FuncMetadata) => {
+async function extractUseCaseMetadata(funcDecl: FunctionDeclaration, metadata: FuncMetadata) {
   const aliasSourceFile = getTypeDeclarationSourceFile(funcDecl.getSourceFile(), metadata.name);
   printToLog("  aliasSourceFile      :", aliasSourceFile.getFilePath()); // /Users/username/Workspace/projectname/src/app/types.ts
 
@@ -357,15 +312,14 @@ const extractUseCaseMetadata = async (funcDecl: FunctionDeclaration, metadata: F
   typeArguments.forEach((typeArgument, index) => {
     handleTypeArgument(typeArgument, index, aliasSourceFile, metadata, aliasDecl);
   });
-};
+}
 
 // Handle Type arguments
-const handleTypeArgument = (typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata, aliasDecl: TypeAliasDeclaration) => {
+function handleTypeArgument(typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata, aliasDecl: TypeAliasDeclaration) {
   printToLog("  typeArgumentKind     :", typeArgument.getKindName()); // TypeReference
 
   if (typeArgument.getKind() === SyntaxKind.TypeReference) {
     handleTypeReferenceArgument(typeArgument, index, aliasSourceFile, metadata);
-
   } else if (typeArgument.getKind() === SyntaxKind.TypeLiteral) {
     const typeFields: any[] = [];
     typeArgument.forEachChild((child) => {
@@ -383,10 +337,10 @@ const handleTypeArgument = (typeArgument: TypeNode<ts.TypeNode>, index: number, 
   } else {
     throw new Error("the type should be Reference or Literal");
   }
-};
+}
 
 // Handle TypeReference arguments
-const handleTypeReferenceArgument = (typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata) => {
+function handleTypeReferenceArgument(typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata) {
   // {
   // console.log(">>>>>>", typeArgument.getText());
 
@@ -434,7 +388,7 @@ const handleTypeReferenceArgument = (typeArgument: TypeNode<ts.TypeNode>, index:
       decorators: typeDecorator,
     };
   }
-};
+}
 
 /**
  * Scans the project for functions, sorts them by kind, resolves their dependencies and wrappers, and returns the results.
@@ -453,13 +407,13 @@ export async function scanFunctions(project: Project) {
   const funcResultMap: Map<string, FuncInstanceMetadata> = new Map();
 
   printToLog("resolve config");
-  await resolveConfigAndWrapperFunctions(configMetadatas, funcMap, funcResultMap);
+  await resolveFunctions(configMetadatas, funcMap, funcResultMap);
 
   printToLog("resolve wrapper");
-  await resolveConfigAndWrapperFunctions(wrapperMetadatas, funcMap, funcResultMap);
+  await resolveFunctions(wrapperMetadatas, funcMap, funcResultMap);
 
   printToLog("resolve action");
-  await resolveActionFunctions(actionMetadatas, wrapperMetadatas, funcMap, funcResultMap);
+  await resolveFunctions(actionMetadatas, funcMap, funcResultMap, wrapperMetadatas);
 
   return funcResultMap;
 }
@@ -473,17 +427,33 @@ function printToLog(message?: any, ...optionalParams: any[]) {
 }
 
 const badgeColorForKind = (kind: TypeOf<typeof InjectableDecorator>) => {
-  if (kind === "Config") {
-    return `${fgGreen}${kind}${reset}`; //
-  }
-
-  if (kind === "Wrapper") {
-    return `${fgBlue}${kind}${reset}`; //
-  }
-
-  if (kind === "Action") {
-    return `${fgRed}${kind}${reset}`; //
-  }
-
+  if (kind === "Config") return `${fgGreen}${kind}${reset}`;
+  if (kind === "Wrapper") return `${fgBlue}${kind}${reset}`;
+  if (kind === "Action") return `${fgRed}${kind}${reset}`;
   return `${kind}`;
 };
+
+// const bright = "\x1b[1m";
+// const dim = "\x1b[2m";
+// const underscore = "\x1b[4m";
+// const blink = "\x1b[5m";
+// const reverse = "\x1b[7m";
+// const hidden = "\x1b[8m";
+const reset = "\x1b[0m";
+const fgRed = "\x1b[31m";
+const fgGreen = "\x1b[32m";
+const fgYellow = "\x1b[33m";
+const fgBlue = "\x1b[34m";
+// const fgMagenta = "\x1b[35m";
+// const fgBlack = "\x1b[30m";
+// const fgCyan = "\x1b[36m";
+// const fgWhite = "\x1b[37m";
+
+// const bgBlack = "\x1b[40m";
+// const bgRed = "\x1b[41m";
+// const bgGreen = "\x1b[42m";
+// const bgYellow = "\x1b[43m";
+// const bgBlue = "\x1b[44m";
+// const bgMagenta = "\x1b[45m";
+// const bgCyan = "\x1b[46m";
+// const bgWhite = "\x1b[47m";

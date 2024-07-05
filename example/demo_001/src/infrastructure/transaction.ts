@@ -5,7 +5,7 @@ import winston from "winston";
 
 /**
  *
- * @Wrapper { "ordinal": 2 }
+ * @Wrapper { "ordinal": 3 }
  */
 export function implTransaction(ds: DataSource, log: winston.Logger): Transaction {
   //
@@ -39,25 +39,25 @@ export function getDataSourceFromContext(ctx: Context, ds: DataSource): DataSour
   return ctx.data?.["transaction"] ? (ctx.data["transaction"] as DataSource) : ds;
 }
 
-// extract transaction
-export function transactionHandling(handler: ActionHandler<any, any>, fm: FuncMetadata, ds: DataSource): ActionHandler<any, any> {
-  // not found transaction
-  if (!fm.additionalDecorators.some((d) => d.name === "Transaction")) {
-    return handler;
-  }
+// // extract transaction
+// export function transactionHandling(handler: ActionHandler<any, any>, fm: FuncMetadata, ds: DataSource): ActionHandler<any, any> {
+//   // not found transaction
+//   if (!fm.additionalDecorators.some((d) => d.name === "Transaction")) {
+//     return handler;
+//   }
 
-  // found transaction
-  return async (ctx, req) => {
-    return await ds.transaction(async (em) => {
-      try {
-        console.log(">>>>>> START    TRANSACTION", fm.name);
-        const result = await handler({ ...ctx, data: { ...ctx.data, ["transaction"]: em } }, req);
-        console.log(">>>>>> COMMIT   TRANSACTION", fm.name);
-        return result;
-      } catch (error: any) {
-        console.log(">>>>>> ROLLBACK TRANSACTION", fm.name);
-        throw error;
-      }
-    });
-  };
-}
+//   // found transaction
+//   return async (ctx, req) => {
+//     return await ds.transaction(async (em) => {
+//       try {
+//         console.log(">>>>>> START    TRANSACTION", fm.name);
+//         const result = await handler({ ...ctx, data: { ...ctx.data, ["transaction"]: em } }, req);
+//         console.log(">>>>>> COMMIT   TRANSACTION", fm.name);
+//         return result;
+//       } catch (error: any) {
+//         console.log(">>>>>> ROLLBACK TRANSACTION", fm.name);
+//         throw error;
+//       }
+//     });
+//   };
+// }

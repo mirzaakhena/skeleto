@@ -1,16 +1,12 @@
-import { Project } from "ts-morph";
-
-import { scanFunctions } from "../core/scanner.js";
-import { newContext, Skeleto } from "../core/skeleto.js";
-import { ActionHandler, FuncInstanceMetadata } from "../core/type.js";
-import { before } from "node:test";
+import { Skeleto } from "../core/skeleto.js";
+import { FuncInstanceMetadata } from "../core/type.js";
 
 describe("Function Utilities", () => {
-
   let containers: Map<string, FuncInstanceMetadata>;
 
   beforeEach(async () => {
-    containers = (await Skeleto.getInstance().startScan("src/test/sample")).getContainer();
+    const skeleto = await Skeleto.start("src/test/sample");
+    containers = skeleto.getContainer();
   });
 
   it("should scan the action function", async () => {

@@ -7,6 +7,9 @@ export type Transaction = WrapperHandler;
 // define logger
 export type Logger = WrapperHandler;
 
+// define error handler
+export type ErrorHandler = WrapperHandler;
+
 // define request type
 type FindOnePersonByEmailRequest = {
   email: string;
@@ -47,7 +50,7 @@ type Request = {
   /**
    * @RequestPart query
    */
-  page2: { xyz: number; abc: string; ppp: boolean };
+  page: number;
 
   /**
    * @RequestPart query
@@ -57,7 +60,7 @@ type Request = {
   /**
    * @RequestPart param
    */
-  something: { pqr: string; n: "aaa" | "bbb" | 20 }; //;
+  something: "aaa" | "bbb" | 20;
 };
 
 // define response type

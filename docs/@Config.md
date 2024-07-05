@@ -1,29 +1,15 @@
 ```typescript
-type Request = {
-  name: string;
-  age: number;
+type DataSource = {
+  name: "postgres" | "mysql";
 };
-
-type Response = {
-  person: Person;
-  token: string;
-};
-
-type ReturnFunc01 = ActionHandler<Request, Response>;
 
 /**
- * @Action
+ * @Config
  */
-export function func01(ds: DataSource): ReturnFunc01 {
+export function func02(): DataSource {
   // step 1
-  return async (ctx, req) => ({
-    // step 2
-    person: {
-      age: 1,
-      id: "",
-      name: "",
-    },
-    token: "",
-  });
+  return {
+    name: "mysql",
+  };
 }
 ```

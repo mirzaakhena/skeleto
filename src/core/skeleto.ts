@@ -12,21 +12,15 @@ export class Skeleto {
 
   private container: Map<string, FuncInstanceMetadata>;
 
-  private constructor() {}
-
-  public static getInstance(): Skeleto {
+  public static async start(directory: string = "src") {
     if (!Skeleto.instance) {
       Skeleto.instance = new Skeleto();
-    }
-    return Skeleto.instance;
-  }
 
-  public async startScan(directory: string = "src") {
-    if (!Skeleto.instance.container) {
       const project = new Project();
       project.addSourceFilesAtPaths(`${directory}/**/*.ts`);
-      this.container = await scanFunctions(project);
+      Skeleto.instance.container = await scanFunctions(project);
     }
+
     return Skeleto.instance;
   }
 

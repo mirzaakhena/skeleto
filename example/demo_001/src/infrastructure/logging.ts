@@ -3,7 +3,7 @@ import { Logger } from "../app/types.js";
 
 /**
  *
- * @Wrapper {"ordinal": 1 }
+ * @Wrapper {"ordinal": 2 }
  */
 export function implTransaction(logger: winston.Logger): Logger {
   return (handler, fm) => {

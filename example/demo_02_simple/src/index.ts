@@ -7,9 +7,9 @@ async function main() {
 
   console.log(JSON.stringify(application.getContainer().get("HelloWorld")?.funcMetadata));
 
-  const heloworld = application.getContainer().get("HelloWorld")?.funcInstance as ActionHandler;
+  const helloworld = application.getContainer().get("HelloWorld")?.funcInstance as ActionHandler;
 
-  const response = await heloworld(newContext(), { name: "Mirza" });
+  const response = await helloworld(newContext(), { name: "Mirza" });
 
   console.log(response);
 

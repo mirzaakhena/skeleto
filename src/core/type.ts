@@ -1,10 +1,23 @@
-export type Context = { data: Record<string, any>; traceId: string; date: Date };
+export type Context = {
+  /**
+   * Flexible storage for any data
+   */
+  data: Record<string, any>;
+
+  /**
+   * Unique identifier for request tracing
+   */
+  traceId: string;
+
+  /**
+   * Timestamp for when the request started
+   */
+  date: Date;
+};
 
 export type ActionHandler<REQUEST = any, RESPONSE = any> = (ctx: Context, request: REQUEST) => Promise<RESPONSE>;
 
-export type WrapperHandler = (actionHandler: ActionHandler, functionMetadata: FuncMetadata) => ActionHandler;
-
-export type FuncInstanceMetadata = { funcInstance: any; funcMetadata: FuncMetadata };
+export type TypeOf<T extends readonly any[]> = T[number];
 
 export type FuncMetadata = {
   /**
@@ -50,7 +63,7 @@ export type FuncMetadata = {
   /**
    * is a JSDoc decorators used in return type definition like
    *    ```
-   *    `@SomeDecorator`
+   *    @SomeDecorator
    *    type ReturnFunc01 = ActionHandler<Request, Response>;
    *    ```
    *
@@ -59,7 +72,7 @@ export type FuncMetadata = {
   returnTypeDecorator?: Decorator[];
 
   /**
-   * metadata for Request
+   * metadata for TypeArgument Request
    *    ```
    *    type ReturnFunc01 = ActionHandler<Request, Response>;
    *    ```
@@ -67,7 +80,7 @@ export type FuncMetadata = {
   request?: Payload;
 
   /**
-   * metadata for Response
+   * metadata for TypeArgument Response
    *    ```
    *    type ReturnFunc01 = ActionHandler<Request, Response>;
    *    ```
@@ -75,20 +88,66 @@ export type FuncMetadata = {
   response?: Payload;
 };
 
-export type Payload = { name: string; path: string; structure: TypeField[]; decorators?: Decorator[] };
+export type WrapperHandler = (actionHandler: ActionHandler, functionMetadata: FuncMetadata) => ActionHandler;
 
-export type TypeOf<T extends readonly any[]> = T[number];
+/**
+ * Store the function instance and function metadata
+ */
+export class FuncInstanceMetadata {
+  constructor(private funcInstance: any, private funcMetadata: FuncMetadata) {}
+  getInstance = () => this.funcInstance;
+  getMetadata = () => this.funcMetadata;
+}
 
 export type Decorator<T = string> = { name: T; data: any };
 
-export const InjectableDecorator = ["Config", "Wrapper", "Action"] as const;
-
 export type TypeField = {
+  /**
+   * For example, we have :
+   *
+   *   ```
+   *   address: string
+   *   ```
+   * then the name is `address`
+   */
   name: string;
-  type: "string" | "number" | "integer" | "array" | "boolean" | "null" | "object";
 
   /**
-   * is a decorator used in field request and response
+   * For example, we have :
+   *
+   *   ```
+   *   address: string
+   *   ```
+   * then the type is `string`
+   */
+  type: any;
+
+  /**
+   * decorator used in each field of Request and Response
    */
   decorators: Decorator[];
 };
+
+export type Payload = {
+  /**
+   * name of Payload type
+   */
+  name: string;
+
+  /**
+   * file location of Payload type
+   */
+  path: string;
+
+  /**
+   * field structure for each Payload
+   */
+  structure: TypeField[];
+
+  /**
+   * a decorator used by Payload
+   */
+  decorators?: Decorator[];
+};
+
+export const InjectableDecorator = ["Config", "Wrapper", "Action"] as const;

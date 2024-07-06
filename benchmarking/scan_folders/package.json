@@ -11,12 +11,13 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "skeleto": "^0.0.1027"
+    "skeleto": "^0.0.1030"
   },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
+    "format": "prettier --write \"./**/*.{js,jsx,ts,tsx,json}\"",
     "test": "jest --no-cache --detectOpenHandles",
     "test:debug": "jest --runInBand"
   }

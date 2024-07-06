@@ -25,28 +25,25 @@ type Request = {
 };
 
 /**
- * @ResponseType01
- * @ResponseType02
- */
-type Response = {
-  /**
-   * @ResponseField01 {"ae": 5}
-   * @ResponseField02 {"af": 6}
-   */
-  person: Person;
-
-  /**
-   * @ResponseField11 {"ag": 7}
-   * @ResponseField12 {"ah": 8}
-   */
-  token: string;
-};
-
-/**
  * @FunctionType01 {"a": 4}
  * @FunctionType02 {"b": true}
  */
-type ReturnFunc01 = ActionHandler<Request, Response>;
+type ReturnFunc01 = ActionHandler<
+  Request,
+  {
+    /**
+     * @ResponseField01 {"ae": 5}
+     * @ResponseField02 {"af": 6}
+     */
+    person: Person;
+
+    /**
+     * @ResponseField11 {"ag": 7}
+     * @ResponseField12 {"ah": 8}
+     */
+    token: string;
+  }
+>;
 
 /**
  * @Action {"readTypeArguments": true}
@@ -107,4 +104,3 @@ export function func04(): MyTransaction {
     };
   };
 }
-

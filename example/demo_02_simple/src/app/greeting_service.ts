@@ -1,14 +1,16 @@
 import { ActionHandler } from "skeleto";
 
-export type GreetingService = ActionHandler<void, { getGreeting: (name: string) => string }>;
+export type GreetingService = ActionHandler<void, { getGreeting: (name: string) => string; getHi: (name: string) => string }>;
 
 /**
- * @Config
+ *
+ * @Action {"readTypeArguments": true}
  */
-export function implGreetingService(): GreetingService {
+export function _(): GreetingService {
   return async () => {
     return {
-      getGreeting: (name: string) => `Hello ${name}`,
+      getGreeting: (name) => `Hello ${name}`,
+      getHi: (name) => `Hi ${name}`,
     };
   };
 }

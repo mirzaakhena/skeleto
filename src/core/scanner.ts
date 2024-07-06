@@ -1,6 +1,6 @@
-import { FunctionDeclaration, Node, Project, SourceFile, SyntaxKind, ts, TypeAliasDeclaration, TypeNode, TypeReferenceNode } from "ts-morph";
+import { FunctionDeclaration, Node, Project, PropertySignature, SourceFile, SyntaxKind, ts, TypeAliasDeclaration, TypeNode, TypeReferenceNode } from "ts-morph";
 import { DependencyResolver } from "./dependency_resolver.js";
-import { Decorator, FuncInstanceMetadata, FuncMetadata, InjectableDecorator, TypeOf } from "./type.js";
+import { Decorator, FuncInstanceMetadata, FuncMetadata, InjectableDecorator, TypeField, TypeOf } from "./type.js";
 
 type FuncDeclMetadata = { funcMetadata: FuncMetadata; funcDeclaration: FunctionDeclaration };
 
@@ -21,7 +21,7 @@ function getParameterHandler(funcDecl: FunctionDeclaration, funcResultMap: Map<s
     const paramTypeName = getFunctionReturnTypeName(param.getTypeNode());
 
     if (funcResultMap.has(paramTypeName)) {
-      paramHandlers.push(funcResultMap.get(paramTypeName)?.funcInstance);
+      paramHandlers.push(funcResultMap.get(paramTypeName)?.getInstance());
     }
   });
 
@@ -181,39 +181,6 @@ function sortFunctionsByKind(funcMap: Map<string, FuncDeclMetadata>) {
   return { configMetadatas, wrapperMetadatas, actionMetadatas };
 }
 
-// Resolve functions
-async function resolveFunctions(
-  metadatas: FuncMetadata[],
-  funcMap: Map<string, FuncDeclMetadata>,
-  funcResultMap: Map<string, FuncInstanceMetadata>,
-  wrapperMetadatas?: FuncMetadata[]
-) {
-  for (const funcMetadata of metadatas) {
-    const funcDecl = funcMap.get(funcMetadata.name)?.funcDeclaration as FunctionDeclaration;
-
-    printToLog("  funcDecl             :", funcDecl.getName());
-
-    if (funcMetadata.mainDecorator.name === "Action" && funcMetadata.mainDecorator.data?.["readTypeArguments"]) {
-      await extractUseCaseMetadata(funcDecl, funcMetadata);
-    }
-
-    const module = await import(funcDecl.getSourceFile().getFilePath());
-
-    const funcName = funcDecl.getName() as string;
-
-    const paramHandlers = getParameterHandler(funcDecl, funcResultMap);
-
-    let funcInstance = module[funcName](...paramHandlers);
-
-    if (wrapperMetadatas) {
-      funcInstance = applyWrappers(funcInstance, funcMetadata, wrapperMetadatas, funcResultMap);
-    }
-
-    funcResultMap.set(funcMetadata.name, { funcInstance, funcMetadata });
-  }
-  printToLog();
-}
-
 function getDeclarationKind(sourceFile: SourceFile, structureName: string) {
   // Loop through the statements in the source file
   for (const node of sourceFile.getChildrenOfKind(SyntaxKind.SyntaxList)) {
@@ -272,14 +239,78 @@ function getTypeDeclarationSourceFile(sourceFile: SourceFile, typeName: string):
   throw new Error(`Type ${typeName} not found at ${sourceFile.getFilePath()}`);
 }
 
-// Apply wrappers
-function applyWrappers(currentResult: any, metadata: FuncMetadata, wrapperMetadatas: FuncMetadata[], funcResultMap: Map<string, FuncInstanceMetadata>) {
-  const sortBasedOrdinal = wrapperMetadatas.sort((a, b) => ((a.mainDecorator.data.ordinal ?? 0) as number) - ((b.mainDecorator.data.ordinal ?? 0) as number));
-  for (const wrapperMetadata of sortBasedOrdinal) {
-    const wrapperHandler = funcResultMap.get(wrapperMetadata.name)?.funcInstance;
-    currentResult = wrapperHandler(currentResult, metadata);
+function collectTypeFields(ps: Node<ts.Node>) {
+  let typeField: TypeField = { decorators: [], name: "", type: null };
+
+  if (Node.isPropertySignature(ps)) {
+    const name = ps.getName(); // name
+    const type = ps.getType().getText(); // string
+    const decorators = getDecoratorMetadata(
+      ps.getJsDocs().map((x) => x.getInnerText()), // metadata of name: string
+      `${name}`
+    );
+    typeField = { name, type, decorators };
+  } else {
+    // TODO what if it is not Property Signature ?
   }
-  return currentResult;
+
+  return typeField;
+}
+
+// Handle TypeReference arguments
+function handleTypeReferenceArgument(typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata) {
+  //
+
+  const aliasDecl = aliasSourceFile.getTypeAlias(typeArgument.getText()); // type Request = { name: string, age: number }
+
+  const typeLiteral = aliasDecl?.getTypeNode()?.asKind(SyntaxKind.TypeLiteral); //{ name: string, age: number}
+
+  const typeFields = typeLiteral?.getProperties().map((ps) => collectTypeFields(ps));
+
+  const payloadSourceFile = getTypeDeclarationSourceFile(aliasSourceFile, typeArgument.getText(true));
+  printToLog("  payloadSourceFile    :", payloadSourceFile.getFilePath()); // /Users/username/Workspace/projectname/src/app/types.ts
+
+  const dk = getDeclarationKind(payloadSourceFile, typeArgument.getText(true));
+
+  if (dk) {
+    let typeDecorator: Decorator[] = [];
+    if (dk.decl) {
+      typeDecorator = getDecoratorMetadata(
+        // metadata for Request
+        dk.decl.getJsDocs().map((x) => x.getInnerText()),
+        typeArgument.getText(true)
+      );
+      printToLog("  typeDecorator     :", JSON.stringify(typeDecorator));
+    }
+
+    metadata[index === 0 ? "request" : "response"] = {
+      name: typeArgument.getText(), // Request
+      path: payloadSourceFile.getFilePath(),
+      structure: typeFields as TypeField[],
+      decorators: typeDecorator,
+    };
+  }
+}
+
+// Handle Type arguments
+function handleTypeArgument(typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata, aliasDecl: TypeAliasDeclaration) {
+  printToLog("  typeArgumentKind     :", typeArgument.getKindName()); // TypeReference
+
+  if (typeArgument.getKind() === SyntaxKind.TypeReference) {
+    handleTypeReferenceArgument(typeArgument, index, aliasSourceFile, metadata);
+
+    //
+  } else if (typeArgument.getKind() === SyntaxKind.TypeLiteral) {
+    const typeFields = typeArgument.forEachChildAsArray().map((ps) => collectTypeFields(ps));
+    metadata[index === 0 ? "request" : "response"] = {
+      name: `index-${index}`,
+      path: aliasSourceFile.getFilePath(),
+      structure: typeFields,
+    };
+  } else {
+    //
+    throw new Error("the type should be Reference or Literal");
+  }
 }
 
 // Extract metadata for use cases
@@ -314,80 +345,47 @@ async function extractUseCaseMetadata(funcDecl: FunctionDeclaration, metadata: F
   });
 }
 
-// Handle Type arguments
-function handleTypeArgument(typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata, aliasDecl: TypeAliasDeclaration) {
-  printToLog("  typeArgumentKind     :", typeArgument.getKindName()); // TypeReference
-
-  if (typeArgument.getKind() === SyntaxKind.TypeReference) {
-    handleTypeReferenceArgument(typeArgument, index, aliasSourceFile, metadata);
-  } else if (typeArgument.getKind() === SyntaxKind.TypeLiteral) {
-    const typeFields: any[] = [];
-    typeArgument.forEachChild((child) => {
-      if (Node.isPropertySignature(child)) {
-        const name = child.getName();
-        const type = child.getType().getText();
-        const decorator = getDecoratorMetadata(
-          child.getJsDocs().map((x) => x.getInnerText()),
-          `${name}`
-        );
-        typeFields.push({ name, type, decorator });
-      }
-    });
-    metadata[index === 0 ? "request" : "response"] = { name: "", path: aliasSourceFile.getFilePath(), structure: typeFields };
-  } else {
-    throw new Error("the type should be Reference or Literal");
+// Apply wrappers
+function applyWrappers(currentResult: any, metadata: FuncMetadata, wrapperMetadatas: FuncMetadata[], funcResultMap: Map<string, FuncInstanceMetadata>) {
+  const sortBasedOrdinal = wrapperMetadatas.sort((a, b) => ((a.mainDecorator.data.ordinal ?? 0) as number) - ((b.mainDecorator.data.ordinal ?? 0) as number));
+  for (const wrapperMetadata of sortBasedOrdinal) {
+    const wrapperHandler = funcResultMap.get(wrapperMetadata.name)?.getInstance();
+    currentResult = wrapperHandler(currentResult, metadata);
   }
+  return currentResult;
 }
 
-// Handle TypeReference arguments
-function handleTypeReferenceArgument(typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata) {
-  // {
-  // console.log(">>>>>>", typeArgument.getText());
+// Resolve functions
+async function resolveFunctions(
+  metadatas: FuncMetadata[],
+  funcMap: Map<string, FuncDeclMetadata>,
+  funcResultMap: Map<string, FuncInstanceMetadata>,
+  wrapperMetadatas?: FuncMetadata[]
+) {
+  for (const funcMetadata of metadatas) {
+    const funcDecl = funcMap.get(funcMetadata.name)?.funcDeclaration as FunctionDeclaration;
 
-  const aliasDecl = aliasSourceFile.getTypeAlias(typeArgument.getText()); // type Request = { name: string, age: number }
+    printToLog("  funcDecl             :", funcDecl.getName());
 
-  // console.log(">>>>>>", aliasDecl?.getText());
-
-  const typeLiteral = aliasDecl?.getTypeNode()?.asKind(SyntaxKind.TypeLiteral); //{ name: string, age: number}
-
-  // console.log(">", typeLiteral?.getText());
-
-  const typeFields: any[] = [];
-  typeLiteral?.getProperties().forEach((ps) => {
-    const name = ps.getName(); // name
-    const type = ps.getType().getText(); // string
-    const decorators = getDecoratorMetadata(
-      // metadata of name: string
-      ps.getJsDocs().map((x) => x.getInnerText()),
-      `${name}`
-    );
-
-    typeFields.push({ name, type, decorators });
-  });
-
-  const payloadSourceFile = getTypeDeclarationSourceFile(aliasSourceFile, typeArgument.getText(true));
-  printToLog("  payloadSourceFile    :", payloadSourceFile.getFilePath()); // /Users/username/Workspace/projectname/src/app/types.ts
-
-  const dk = getDeclarationKind(payloadSourceFile, typeArgument.getText(true));
-
-  if (dk) {
-    let typeDecorator: Decorator[] = [];
-    if (dk.decl) {
-      typeDecorator = getDecoratorMetadata(
-        // metadata for Request
-        dk.decl.getJsDocs().map((x) => x.getInnerText()),
-        typeArgument.getText(true)
-      );
-      printToLog("  typeDecorator     :", JSON.stringify(typeDecorator));
+    if (funcMetadata.mainDecorator.name === "Action" && funcMetadata.mainDecorator.data?.["readTypeArguments"]) {
+      await extractUseCaseMetadata(funcDecl, funcMetadata);
     }
 
-    metadata[index === 0 ? "request" : "response"] = {
-      name: typeArgument.getText(), // Request
-      path: payloadSourceFile.getFilePath(),
-      structure: typeFields,
-      decorators: typeDecorator,
-    };
+    const module = await import(funcDecl.getSourceFile().getFilePath());
+
+    const funcName = funcDecl.getName() as string;
+
+    const paramHandlers = getParameterHandler(funcDecl, funcResultMap);
+
+    let funcInstance = module[funcName](...paramHandlers);
+
+    if (wrapperMetadatas) {
+      funcInstance = applyWrappers(funcInstance, funcMetadata, wrapperMetadatas, funcResultMap);
+    }
+
+    funcResultMap.set(funcMetadata.name, new FuncInstanceMetadata(funcInstance, funcMetadata));
   }
+  printToLog();
 }
 
 /**

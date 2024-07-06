@@ -12,7 +12,7 @@ ActionHandler, Request, Response
 
 Closure
 
-
+Primary and Secondary Function
 
 Currently function does not support decorator that's why we can utilize the JSDoc as a decorator
 

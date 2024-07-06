@@ -12,12 +12,13 @@ type HelloWorldResponse = {
 type HelloWorld = ActionHandler<HelloWorldRequest, HelloWorldResponse>;
 
 /**
- *
- * @Action
+ * @Action {"readTypeArguments": true}
  */
-export function implHelloWorld(gs: GreetingService): HelloWorld {
+export function _(gs: GreetingService): HelloWorld {
   return async (ctx, req) => {
     const result = await gs(ctx);
+
+    result.getHi("");
 
     return {
       message: `Hello ${result.getGreeting(req.name)}`,

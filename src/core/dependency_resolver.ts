@@ -3,6 +3,9 @@ type TypeDependencies = {
   dependencies: string[];
 };
 
+/**
+ *
+ */
 export class DependencyResolver {
   //
 

@@ -1,3 +1,10 @@
+/**
+ * Structured way to pass metadata through functions, ensuring that all necessary information flows along with the function calls. This can be especially useful for logging, tracing, and managing state across a series of function calls.
+ * - data: This property is a record (or dictionary) where the keys are strings and the values are of any type. You can store various types of data here, such as state information, database transactions, additional log information, etc.
+ * - traceId: This property is a string that serves as a unique identifier, allowing you to trace a series of function calls back to a single request or session. This is particularly useful for debugging and monitoring.
+ * - date: This property is a `Date` object representing the timestamp when the request started. This can help in tracking the duration of the request and for logging purposes.
+ *
+ */
 export type Context = {
   /**
    * Flexible storage for any data
@@ -15,6 +22,13 @@ export type Context = {
   date: Date;
 };
 
+/**
+ * generic function type that standardizes the structure of functions handling actions within your application. It ensures that these functions maintain a consistent signature, making your code more predictable and easier to maintain.
+ *
+ * - `ctx: Context`: The first parameter is your `Context` object, which contains metadata like `data`, `traceId`, and `date`.
+ * - `request: REQUEST`: The second parameter is the request object, whose type is defined by the `REQUEST` generic parameter.
+ * - `Promise<RESPONSE>`: The return type of the function is a `Promise` that resolves to a response of type `RESPONSE`.
+ */
 export type ActionHandler<REQUEST = any, RESPONSE = any> = (ctx: Context, request: REQUEST) => Promise<RESPONSE>;
 
 export type TypeOf<T extends readonly any[]> = T[number];
@@ -88,6 +102,9 @@ export type FuncMetadata = {
   response?: Payload;
 };
 
+/**
+ *
+ */
 export type WrapperHandler = (actionHandler: ActionHandler, functionMetadata: FuncMetadata) => ActionHandler;
 
 /**

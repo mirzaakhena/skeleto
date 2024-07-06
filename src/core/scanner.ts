@@ -1,31 +1,11 @@
-import { FunctionDeclaration, Node, Project, PropertySignature, SourceFile, SyntaxKind, ts, TypeAliasDeclaration, TypeNode, TypeReferenceNode } from "ts-morph";
+import { FunctionDeclaration, Node, Project, SourceFile, SyntaxKind, ts, TypeAliasDeclaration, TypeNode, TypeReferenceNode } from "ts-morph";
 import { DependencyResolver } from "./dependency_resolver.js";
 import { Decorator, FuncInstanceMetadata, FuncMetadata, InjectableDecorator, TypeField, TypeOf } from "./type.js";
 
 type FuncDeclMetadata = { funcMetadata: FuncMetadata; funcDeclaration: FunctionDeclaration };
 
-type InjectableDecoratorType = TypeOf<typeof InjectableDecorator>;
-
 function getFunctionReturnTypeName(returnTypeNode: TypeNode<ts.TypeNode> | undefined) {
   return (returnTypeNode as TypeReferenceNode).getText();
-}
-
-function getFunctionParameters(func: FunctionDeclaration) {
-  return func.getParameters().map((param) => getFunctionReturnTypeName(param.getTypeNode()));
-}
-
-function getParameterHandler(funcDecl: FunctionDeclaration, funcResultMap: Map<string, FuncInstanceMetadata>) {
-  const paramHandlers: any[] = [];
-
-  funcDecl.getParameters().forEach((param) => {
-    const paramTypeName = getFunctionReturnTypeName(param.getTypeNode());
-
-    if (funcResultMap.has(paramTypeName)) {
-      paramHandlers.push(funcResultMap.get(paramTypeName)?.getInstance());
-    }
-  });
-
-  return paramHandlers;
 }
 
 function getDecoratorMetadata(jsDocs: string[], source?: string) {
@@ -86,7 +66,15 @@ function getDecoratorMetadata(jsDocs: string[], source?: string) {
  * @returns A map where the keys are function names and the values are objects containing function metadata and declarations.
  */
 function extractFunctions(project: Project): Map<string, FuncDeclMetadata> {
+  //
+
   const funcMap: Map<string, FuncDeclMetadata> = new Map();
+
+  type InjectableDecoratorType = TypeOf<typeof InjectableDecorator>;
+
+  const getFunctionParameters = (func: FunctionDeclaration) => {
+    return func.getParameters().map((param) => getFunctionReturnTypeName(param.getTypeNode()));
+  };
 
   project.getSourceFiles().forEach((sourceFile) => {
     sourceFile.getFunctions().forEach((func) => {
@@ -314,7 +302,7 @@ function handleTypeArgument(typeArgument: TypeNode<ts.TypeNode>, index: number, 
 }
 
 // Extract metadata for use cases
-async function extractUseCaseMetadata(funcDecl: FunctionDeclaration, metadata: FuncMetadata) {
+async function extractTypeArguments(funcDecl: FunctionDeclaration, metadata: FuncMetadata) {
   const aliasSourceFile = getTypeDeclarationSourceFile(funcDecl.getSourceFile(), metadata.name);
   printToLog("  aliasSourceFile      :", aliasSourceFile.getFilePath()); // /Users/username/Workspace/projectname/src/app/types.ts
 
@@ -355,6 +343,20 @@ function applyWrappers(currentResult: any, metadata: FuncMetadata, wrapperMetada
   return currentResult;
 }
 
+function getParameterHandler(funcDecl: FunctionDeclaration, funcResultMap: Map<string, FuncInstanceMetadata>) {
+  const paramHandlers: any[] = [];
+
+  funcDecl.getParameters().forEach((param) => {
+    const paramTypeName = getFunctionReturnTypeName(param.getTypeNode());
+
+    if (funcResultMap.has(paramTypeName)) {
+      paramHandlers.push(funcResultMap.get(paramTypeName)?.getInstance());
+    }
+  });
+
+  return paramHandlers;
+}
+
 // Resolve functions
 async function resolveFunctions(
   metadatas: FuncMetadata[],
@@ -368,7 +370,7 @@ async function resolveFunctions(
     printToLog("  funcDecl             :", funcDecl.getName());
 
     if (funcMetadata.mainDecorator.name === "Action" && funcMetadata.mainDecorator.data?.["readTypeArguments"]) {
-      await extractUseCaseMetadata(funcDecl, funcMetadata);
+      await extractTypeArguments(funcDecl, funcMetadata);
     }
 
     const module = await import(funcDecl.getSourceFile().getFilePath());

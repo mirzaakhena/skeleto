@@ -1,3 +1,5 @@
+// src/core/dependency_resolver.ts
+
 type TypeDependencies = {
   name: string;
   dependencies: string[];

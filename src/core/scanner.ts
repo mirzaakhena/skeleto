@@ -1,4 +1,19 @@
-import { FunctionDeclaration, Node, Project, SourceFile, SyntaxKind, ts, TypeAliasDeclaration, TypeNode, TypeReferenceNode } from "ts-morph";
+// src/core/scanner.ts
+
+import {
+  ArrayTypeNode,
+  FunctionDeclaration,
+  IntersectionTypeNode,
+  Node,
+  Project,
+  SourceFile,
+  SyntaxKind,
+  ts,
+  TypeAliasDeclaration,
+  TypeNode,
+  TypeReferenceNode,
+  UnionTypeNode,
+} from "ts-morph";
 import { DependencyResolver } from "./dependency_resolver.js";
 import { Decorator, FuncInstanceMetadata, FuncMetadata, InjectableDecorator, TypeField, TypeOf } from "./type.js";
 
@@ -77,22 +92,22 @@ function extractFunctions(project: Project): Map<string, FuncDeclMetadata> {
   };
 
   project.getSourceFiles().forEach((sourceFile) => {
-    sourceFile.getFunctions().forEach((func) => {
+    sourceFile.getFunctions().forEach((funcDeclaration) => {
       //
 
-      if (!func.isExported()) return;
+      if (!funcDeclaration.isExported()) return;
 
-      const funcName = func.getName();
+      const funcName = funcDeclaration.getName();
       if (!funcName) return;
 
-      const returnTypeNode = func.getReturnTypeNode();
+      const returnTypeNode = funcDeclaration.getReturnTypeNode();
       if (!returnTypeNode) return;
 
       const functionReturnTypeName = getFunctionReturnTypeName(returnTypeNode);
       if (funcMap.has(functionReturnTypeName)) return;
 
       const decorators = getDecoratorMetadata(
-        func.getJsDocs().map((x) => x.getInnerText()),
+        funcDeclaration.getJsDocs().map((x) => x.getInnerText()),
         `function ${funcName}`
       );
       if (!decorators.some((x) => InjectableDecorator.some((y) => y === x.name))) return;
@@ -107,18 +122,22 @@ function extractFunctions(project: Project): Map<string, FuncDeclMetadata> {
         }
       });
 
-      const dependencies = getFunctionParameters(func);
+      const dependencies = getFunctionParameters(funcDeclaration);
 
-      const meta: FuncMetadata = {
+      const funcMetadata: FuncMetadata = {
         name: functionReturnTypeName,
         dependencies,
         mainDecorator: mainDecorator as Decorator<TypeOf<typeof InjectableDecorator>>,
         additionalDecorators,
       };
 
-      printToLog(`  as ${badgeColorForKind(meta.mainDecorator.name).padEnd(19)} func ${meta.name.padEnd(50)} ${meta.dependencies.length > 0 ? `${meta.dependencies}` : "-"}`);
+      printToLog(
+        `  as ${badgeColorForKind(funcMetadata.mainDecorator.name).padEnd(19)} func ${funcMetadata.name.padEnd(50)} ${
+          funcMetadata.dependencies.length > 0 ? `${funcMetadata.dependencies}` : "-"
+        }`
+      );
 
-      funcMap.set(functionReturnTypeName, { funcDeclaration: func, funcMetadata: meta });
+      funcMap.set(functionReturnTypeName, { funcDeclaration, funcMetadata });
     });
   });
 
@@ -281,24 +300,82 @@ function handleTypeReferenceArgument(typeArgument: TypeNode<ts.TypeNode>, index:
 }
 
 // Handle Type arguments
-function handleTypeArgument(typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata, aliasDecl: TypeAliasDeclaration) {
-  printToLog("  typeArgumentKind     :", typeArgument.getKindName()); // TypeReference
+function handleTypeArgument(typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata) {
+  //
 
-  if (typeArgument.getKind() === SyntaxKind.TypeReference) {
-    handleTypeReferenceArgument(typeArgument, index, aliasSourceFile, metadata);
+  const kindName = typeArgument.getKindName();
+  printToLog("  typeArgumentKind     :", kindName); // TypeReference
 
-    //
-  } else if (typeArgument.getKind() === SyntaxKind.TypeLiteral) {
-    const typeFields = typeArgument.forEachChildAsArray().map((ps) => collectTypeFields(ps));
-    metadata[index === 0 ? "request" : "response"] = {
-      name: `index-${index}`,
-      path: aliasSourceFile.getFilePath(),
-      structure: typeFields,
-    };
-  } else {
-    //
-    throw new Error("the type should be Reference or Literal");
+  switch (typeArgument.getKind()) {
+    case SyntaxKind.TypeReference:
+      handleTypeReferenceArgument(typeArgument, index, aliasSourceFile, metadata);
+      break;
+
+    case SyntaxKind.TypeLiteral:
+      handleTypeLiteral(typeArgument, index, aliasSourceFile, metadata);
+      break;
+
+    case SyntaxKind.VoidKeyword:
+    case SyntaxKind.StringKeyword:
+    case SyntaxKind.NumberKeyword:
+    case SyntaxKind.BooleanKeyword:
+    case SyntaxKind.AnyKeyword:
+    case SyntaxKind.UnknownKeyword:
+    case SyntaxKind.NeverKeyword:
+      handlePrimitiveType(typeArgument, index, metadata);
+      break;
+
+    case SyntaxKind.ArrayType:
+      handleArrayType(typeArgument as ArrayTypeNode, index, aliasSourceFile, metadata);
+      break;
+
+    case SyntaxKind.UnionType:
+    case SyntaxKind.IntersectionType:
+      handleCompositeType(typeArgument as UnionTypeNode | IntersectionTypeNode, index, aliasSourceFile, metadata);
+      break;
+
+    default:
+      console.warn(`Unhandled type argument kind: ${kindName}`);
+      metadata[index === 0 ? "request" : "response"] = {
+        name: `index-${index}`,
+        path: aliasSourceFile.getFilePath(),
+        // structure: `Unhandled type: ${kindName}`,
+      };
   }
+}
+
+function handleTypeLiteral(typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata) {
+  const typeFields = typeArgument.forEachChildAsArray().map((ps) => collectTypeFields(ps));
+  metadata[index === 0 ? "request" : "response"] = {
+    name: `index-${index}`,
+    path: aliasSourceFile.getFilePath(),
+    structure: typeFields,
+  };
+}
+
+function handlePrimitiveType(typeArgument: TypeNode<ts.TypeNode>, index: number, metadata: FuncMetadata) {
+  metadata[index === 0 ? "request" : "response"] = {
+    name: `index-${index}`,
+    // type: typeArgument.getKindName(),
+  };
+}
+
+function handleArrayType(typeArgument: ArrayTypeNode, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata) {
+  const elementType = typeArgument.getElementTypeNode();
+  metadata[index === 0 ? "request" : "response"] = {
+    name: `index-${index}`,
+    // type: "Array",
+    // elementType: elementType ? elementType.getKindName() : "Unknown",
+  };
+}
+
+function handleCompositeType(typeArgument: UnionTypeNode | IntersectionTypeNode, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata) {
+  const types = typeArgument.getTypeNodes().map((t) => t.getKindName());
+  metadata[index === 0 ? "request" : "response"] = {
+    name: `index-${index}`,
+    // type: typeArgument.getKindName(),
+    // types: types,
+  };
 }
 
 // Extract metadata for use cases
@@ -329,7 +406,7 @@ async function extractTypeArguments(funcDecl: FunctionDeclaration, metadata: Fun
 
   // handle each Request in index-0 and Response in index-1
   typeArguments.forEach((typeArgument, index) => {
-    handleTypeArgument(typeArgument, index, aliasSourceFile, metadata, aliasDecl);
+    handleTypeArgument(typeArgument, index, aliasSourceFile, metadata);
   });
 }
 

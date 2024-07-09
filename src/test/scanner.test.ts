@@ -1,3 +1,5 @@
+// src/test/scanner.test.ts
+
 import { Skeleto } from "../core/skeleto.js";
 import { FuncInstanceMetadata } from "../core/type.js";
 
@@ -9,7 +11,7 @@ describe("Function Utilities", () => {
     containers = skeleto.getContainer();
   });
 
-  it("should scan the action function", async () => {
+  it("should scan the action function 01", async () => {
     //
 
     const obj1 = containers.get("ReturnFunc01");
@@ -131,4 +133,12 @@ describe("Function Utilities", () => {
 
     //
   });
+
+  // it("should scan the action functio 02", async () => {
+  //   //
+
+  //   const obj1 = containers.get("ReturnFunc02");
+
+  //   expect(obj1?.getMetadata()).toEqual({});
+  // });
 });

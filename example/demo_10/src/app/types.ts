@@ -11,9 +11,7 @@ export type Logging = WrapperHandler;
 export type ErrorHandler = WrapperHandler;
 
 // define request type
-type FindOnePersonByEmailRequest = {
-  email: string;
-};
+type FindOnePersonByEmailRequest = { email: string; };
 
 // define response type
 type FindOnePersonByEmailResponse = Person | null;

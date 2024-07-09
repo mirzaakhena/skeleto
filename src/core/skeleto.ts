@@ -1,3 +1,5 @@
+// src/core/skeleto.ts
+
 import { Project } from "ts-morph";
 import { scanFunctions } from "./scanner.js";
 import { Context, FuncInstanceMetadata } from "./type.js";

@@ -1,3 +1,5 @@
+// src/test/sample/test1_file.ts
+
 import { ActionHandler, WrapperHandler } from "../../core/type";
 
 type Person = {
@@ -103,4 +105,13 @@ export function func04(): MyTransaction {
       return ah;
     };
   };
+}
+
+type ReturnFunc02 = ActionHandler<Request, boolean>;
+
+/**
+ * @Action {"readTypeArguments": true}
+ */
+export function func05(): ReturnFunc02 {
+  return async (ctx, req) => false;
 }

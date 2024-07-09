@@ -1,17 +1,24 @@
-import { ActionHandler, newContext, Skeleto } from "skeleto";
+import { runClient } from "./app/client.js";
+import { runServer } from "./app/server.js";
 
 async function main() {
   //
 
-  const application = await Skeleto.getInstance().startScan("./src/app");
+  const input = process.argv[2];
 
-  console.log(JSON.stringify(application.getContainer().get("HelloWorld")?.funcMetadata));
+  if (input === "client") {
+    console.log("Running client application...");
+    runClient();
 
-  const helloworld = application.getContainer().get("HelloWorld")?.funcInstance as ActionHandler;
+    //
+  } else if (input === "server") {
+    console.log("Running server application...");
+    runServer();
 
-  const response = await helloworld(newContext(), { name: "Mirza" });
-
-  console.log(response);
+    //
+  } else {
+    console.log('Unknown argument. Please use "client" or "server".');
+  }
 
   //
 }

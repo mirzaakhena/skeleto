@@ -1,3 +1,5 @@
+// src/core/type.ts
+
 /**
  * Structured way to pass metadata through functions, ensuring that all necessary information flows along with the function calls. This can be especially useful for logging, tracing, and managing state across a series of function calls.
  * - data: This property is a record (or dictionary) where the keys are strings and the values are of any type. You can store various types of data here, such as state information, database transactions, additional log information, etc.
@@ -154,12 +156,12 @@ export type Payload = {
   /**
    * file location of Payload type
    */
-  path: string;
+  path?: string;
 
   /**
    * field structure for each Payload
    */
-  structure: TypeField[];
+  structure?: TypeField[];
 
   /**
    * a decorator used by Payload

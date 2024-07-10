@@ -56,9 +56,9 @@ This quick start guide will walk you through creating a simple "Hello World" app
     */
    export function implFindCityByName(): FindCityByName {
      return async (ctx, req) => {
-       if (req.name === "ade") return { name: "ade", city: "Jakarta" };
-       if (req.name === "asep") return { name: "asep", city: "Bandung" };
-       if (req.name === "anto") return { name: "anto", city: "Yogyakarta" };
+       if (req.name === "ade") return { city: "Jakarta" };
+       if (req.name === "asep") return { city: "Bandung" };
+       if (req.name === "anto") return { city: "Yogyakarta" };
        return null;
      };
    }
@@ -263,7 +263,7 @@ Understanding the internal workings of Skeleto can help you leverage its full po
 
 While the Quick Start guide provides a simple example, Skeleto is capable of handling more complex scenarios. Here's an advanced example that demonstrates integration with a database, custom error handling, and logging:
 
-[More Advance Example](https://github.com/mirzaakhena/skeleto/blob/main/example/demo_10)
+[More Advance Example](https://github.com/mirzaakhena/skeleto/blob/main/example/demo_10_restapi)
 
 This example showcases:
 

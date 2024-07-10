@@ -14,7 +14,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "skeleto": "^0.0.1030",
+    "skeleto": "^0.0.1032",
     "winston": "^3.13.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

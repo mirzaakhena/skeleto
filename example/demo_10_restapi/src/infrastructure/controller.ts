@@ -15,12 +15,12 @@ export function generateRouter(useCases: FuncInstanceMetadata[]) {
 
   const router = express.Router();
 
-  useCases.forEach(({ funcInstance, funcMetadata }) => {
+  useCases.forEach((fm) => {
     //
 
-    const useCase = funcInstance as ActionHandler;
+    const useCase = fm.getInstance() as ActionHandler;
 
-    const data = funcMetadata.additionalDecorators.find((x) => x.name === "Controller")?.data as { method: Methods; path: string; tag: string };
+    const data = fm.getMetadata().additionalDecorators.find((x) => x.name === "Controller")?.data as { method: Methods; path: string; tag: string };
 
     if (!data) throw new Error("undefined path and method");
 
@@ -31,7 +31,7 @@ export function generateRouter(useCases: FuncInstanceMetadata[]) {
 
       let payload = {};
 
-      funcMetadata.request?.structure.forEach((tf) => {
+      fm.getMetadata().request?.structure?.forEach((tf) => {
         //
 
         tf.decorators.forEach((y) => {
@@ -111,16 +111,16 @@ export function printController(usecases: FuncInstanceMetadata[]) {
   let maxLengthUsecase = 0;
   let maxLengthTag = 0;
 
-  usecases.forEach(({ funcMetadata }) => {
+  usecases.forEach((fm) => {
     //
 
-    const data = funcMetadata.additionalDecorators.find((x) => x.name === "Controller")?.data as { method: Methods; path: string; tag: string };
+    const data = fm.getMetadata().additionalDecorators.find((x) => x.name === "Controller")?.data as { method: Methods; path: string; tag: string };
 
     if (maxLengthRoute < data.path.toString().length) {
       maxLengthRoute = data.path.toString().length;
     }
 
-    const usecase = camelToPascalWithSpace(funcMetadata.name);
+    const usecase = camelToPascalWithSpace(fm.getMetadata().name);
     if (maxLengthUsecase < usecase.length) {
       maxLengthUsecase = usecase.length;
     }
@@ -132,10 +132,10 @@ export function printController(usecases: FuncInstanceMetadata[]) {
 
   let tag = "";
 
-  return usecases.map(({ funcMetadata }) => {
+  return usecases.map((fm) => {
     //
 
-    const data = funcMetadata.additionalDecorators.find((x) => x.name === "Controller")?.data as { method: Methods; path: string; tag: string };
+    const data = fm.getMetadata().additionalDecorators.find((x) => x.name === "Controller")?.data as { method: Methods; path: string; tag: string };
 
     let groupLabel = data.tag;
 
@@ -148,7 +148,7 @@ export function printController(usecases: FuncInstanceMetadata[]) {
     return {
       //
       tag: groupLabel.toUpperCase().padEnd(maxLengthTag),
-      usecase: camelToPascalWithSpace(funcMetadata.name).padEnd(maxLengthUsecase).substring(0),
+      usecase: camelToPascalWithSpace(fm.getMetadata().name).padEnd(maxLengthUsecase).substring(0),
       method: data.method.padStart(6).toUpperCase(),
       path: data.path.toString().padEnd(maxLengthRoute).substring(0),
     };

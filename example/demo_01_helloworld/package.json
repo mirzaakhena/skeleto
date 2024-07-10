@@ -11,7 +11,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "skeleto": "^0.0.1031"
+    "skeleto": "^0.0.1032"
   },
   "scripts": {
     "build": "tsc",

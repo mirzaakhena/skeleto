@@ -38,7 +38,7 @@ export function generateOpenAPIObject(useCases: FuncMetadata[], securitySchemes?
 
     const bodyFields: string[] = [];
 
-    funcMetadata.request?.structure.forEach((x) => {
+    funcMetadata.request?.structure?.forEach((x) => {
       //
 
       x.decorators.forEach((y) => {

@@ -15,14 +15,14 @@ async function main() {
 
   const application = await Skeleto.start();
 
-  const dataSource = application.getContainer().get("DataSource")?.funcInstance as DataSource;
+  const dataSource = application.getContainer().get("DataSource")?.getInstance() as DataSource;
   await dataSource.initialize();
 
   const app = express();
   const port = 3001;
 
   const usecases = Array.from(application.getContainer().values()) // //
-    .filter((x) => x.funcMetadata.additionalDecorators.some((y) => y.name === "Controller"));
+    .filter((x) => x.getMetadata().additionalDecorators.some((y) => y.name === "Controller"));
 
   const router = generateRouter(usecases);
 
@@ -42,7 +42,7 @@ async function main() {
     res.send(
       YAML.stringify(
         generateOpenAPIObject(
-          usecases.map((x) => x.funcMetadata),
+          usecases.map((x) => x.getMetadata()),
           securitySchema
         )
       )

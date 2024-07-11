@@ -1,66 +1,47 @@
-900 folders
-Scan Time: 1952300917 ns
-Scan Time: 1943946917 ns
-Scan Time: 1971464583 ns
-Scan Time: 1928959250 ns
-Scan Time: 1904600459 ns
-
-900 folders
-Scan Time: 4006221417 ns
-Scan Time: 3331240417 ns
-Scan Time: 3282399750 ns
-Scan Time: 3404235750 ns
-Scan Time: 3252209959 ns
-Scan Time: 4038245959 ns
-Scan Time: 3481387875 ns
-Scan Time: 3325533208 ns
-
-500 folders
-Scan Time: 2428001583 ns
-Scan Time: 2021514833 ns
-Scan Time: 2012329167 ns
-Scan Time: 2183108750 ns
-Scan Time: 2035768792 ns
-Scan Time: 2242414667 ns
-
-100 folders
-Scan Time: 1081679125 ns
-Scan Time: 899963041 ns
-Scan Time: 894533416 ns
-Scan Time: 944199625 ns
-Scan Time: 915920708 ns
+10 folders
+Scan Time: 750878542 ns
+Scan Time: 806306791 ns
+Scan Time: 1019629958 ns
+Scan Time: 713591084 ns
+Scan Time: 719194333 ns
+Scan Time: 760655875 ns
 
 50 folders
-Scan Time: 868003708 ns
-Scan Time: 768337000 ns
-Scan Time: 765067917 ns
-Scan Time: 847432750 ns
-Scan Time: 787581541 ns
+Scan Time: 965596125 ns
+Scan Time: 810523417 ns
+Scan Time: 763190958 ns
+Scan Time: 794410500 ns
+Scan Time: 784199000 ns
+Scan Time: 804684000 ns
 
+100 folders
+Scan Time: 1199990917 ns
+Scan Time: 952081833 ns
+Scan Time: 992549875 ns
+Scan Time: 985797583 ns
+Scan Time: 996083584 ns
+Scan Time: 963529625 ns
 
-100 folders bun
-Scan Time: 786966000 ns
-Scan Time: 742492417 ns
-Scan Time: 743920416 ns
-Scan Time: 741332917 ns
-Scan Time: 750007542 ns
+300 folders
+Scan Time: 1919516375 ns
+Scan Time: 1534787375 ns
+Scan Time: 1646146209 ns
+Scan Time: 1544529334 ns
+Scan Time: 1577996750 ns
+Scan Time: 1699066333 ns
 
-999 folders bun
-Scan Time: 2672542208 ns
-Scan Time: 2611518917 ns
-Scan Time: 2608185166 ns
-Scan Time: 2656357500 ns
-Scan Time: 2609840875 ns
+600 folders
+Scan Time: 3011943458 ns
+Scan Time: 2492435584 ns
+Scan Time: 2628392625 ns
+Scan Time: 2554318667 ns
+Scan Time: 2448731167 ns
+Scan Time: 2460413167 ns
 
-999 folders nodejs
-Scan Time: 4340691041 ns
-Scan Time: 3735674500 ns
-Scan Time: 3640037125 ns
-Scan Time: 3631949792 ns
-Scan Time: 3638008042 ns
-
-
-
-
-
-
+900 folders
+Scan Time: 4264319625 ns
+Scan Time: 3566423042 ns
+Scan Time: 3552747416 ns
+Scan Time: 3624492541 ns
+Scan Time: 3499863084 ns
+Scan Time: 3567771916 ns

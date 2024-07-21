@@ -1,65 +1,198 @@
-In some scenarios, you may want to decouple a primary function from its dependencies on specific secondary functions. This can be accomplished by using function type aliases and dependency injection. Let's explore an example to understand this better.
+# Primary and Secondary Functions
 
-Consider the following initial code:
+## Introduction
+
+In our TypeScript framework, we distinguish between two types of functions: primary functions and secondary functions. This distinction helps in organizing the codebase and separating concerns according to well-established software engineering principles.
+
+## Conceptual Overview
+
+### Primary Functions
+
+- In Clean Architecture terminology, primary functions can be seen as **use cases**.
+- In the Controller-Service-Repository pattern, primary functions correspond to **services**.
+
+### Secondary Functions
+
+- In Clean Architecture, secondary functions act as **gateways**.
+- While often associated with repositories in the Controller-Service-Repository pattern, our concept of secondary functions is broader. It encompasses not just database operations, but also API client calls, message queue interactions, and other external service integrations.
+
+## Structure and Implementation
+
+Both primary and secondary functions share a similar structure, derived from the `ActionHandler` type:
 
 ```typescript
-function secondary01() {}
+export type Context = {
+  /**
+   * Flexible storage for any data
+   */
+  data: Record<string, any>;
+  /**
+   * Unique identifier for request tracing
+   */
+  traceId: string;
+  /**
+   * Timestamp for when the request started
+   */
+  date: Date;
+};
 
-function secondary02() {}
+export type ActionHandler<REQUEST = any, RESPONSE = any> = (ctx: Context, request: REQUEST) => Promise<RESPONSE>;
+```
 
-function primary() {
-  // Here we call secondary01
-  secondary01();
+### Function Implementation Pattern
+
+We maintain a consistent pattern for implementing functions:
+
+```typescript
+import { ActionHandler } from "skeleto";
+
+type Request = {
+  // all required payload (may contain optional payload) in order to run the function
+};
+
+type Response = {
+  // all the information that may returned after the function is successfully executed
+};
+
+// the function type as an interface
+export type OrderProcessReturn = ActionHandler<Request, Response>;
+
+// the function type implementation
+export function implOrderProcessReturn(): OrderProcessReturn {
+  return async (ctx, req) => {
+    // Implementation goes here
+    return {};
+  };
 }
 ```
 
-In this setup, the `primary` function directly depends on the `secondary01` function. If we want to swap out `secondary01` for `secondary02`, we would have to modify the implementation of `primary`:
+### Real-world Example
+
+Here's a more concrete example of a primary function:
 
 ```typescript
-function secondary01() {}
+import { ActionHandler } from "skeleto";
 
-function secondary02() {}
+type OrderItem = {
+  productId: string;
+  quantity: number;
+  price: number;
+};
 
-function primary() {
-  // Now we call secondary02
-  secondary02();
+type Request = {
+  customerId: string;
+  items: OrderItem[];
+  shippingAddress: string;
+  paymentMethod: string;
+};
+
+type Response = {
+  orderId: string;
+  totalAmount: number;
+  estimatedDeliveryDate: Date;
+};
+
+export type OrderCreateNew = ActionHandler<Request, Response>;
+
+export function implOrderCreateNew(): OrderCreateNew {
+  return async (ctx, req) => {
+    // Implementation goes here
+    return {
+      orderId: "",
+      totalAmount: 0,
+      estimatedDeliveryDate: new Date(),
+    };
+  };
 }
 ```
 
-To avoid this tight coupling and make our `primary` function more flexible, we can introduce a function type alias. This will allow us to inject different functions into `primary` without modifying its implementation. Here's how we can achieve this:
+## Connecting Primary and Secondary Functions
 
-1. Define a function type alias:
-
-```typescript
-type SomeType = () => void;
-```
-
-2. Modify the `primary` function to accept a parameter of this type alias:
+Primary functions often depend on secondary functions. We inject these dependencies as parameters to the primary function implementation:
 
 ```typescript
-function secondary01() {}
+type OrderItem = {
+  productId: string;
+  quantity: number;
+  price: number;
+};
 
-type SomeType = () => void;
+type Request = {
+  customerId: string;
+  items: OrderItem[];
+  shippingAddress: string;
+  paymentMethod: string;
+};
 
-function primary(func: SomeType) {
-  func();
+type Response = {
+  orderId: string;
+  totalAmount: number;
+  estimatedDeliveryDate: Date;
+};
+
+type OrderCreateNew = ActionHandler<Request, Response>;
+
+type GenerateId = ActionHandler<void, string>;
+type GetCurrentDate = ActionHandler<void, Date>;
+type SaveOrder = ActionHandler<
+  {
+    id: string;
+    customerId: string;
+    items: OrderItem[];
+    shippingAddress: string;
+    paymentMethod: string;
+    totalAmount: number;
+    status: string;
+    createdAt: Date;
+  },
+  void
+>;
+
+export function implOrderCreateNew(generateId: GenerateId, getCurrentDate: GetCurrentDate, saveOrder: SaveOrder): OrderCreateNew {
+  return async (ctx, req) => {
+    if (req.items.length === 0) {
+      throw new Error("Order must contain at least one item");
+    }
+
+    const orderId = await generateId(ctx);
+    const currentDate = await getCurrentDate(ctx);
+    const estimatedDeliveryDate = new Date(currentDate.getTime());
+    estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 7); // Estimated 7 days for delivery
+
+    const totalAmount = req.items.reduce((sum, item) => sum + item.quantity * item.price, 0);
+
+    const newOrder = {
+      id: orderId,
+      customerId: req.customerId,
+      items: req.items,
+      shippingAddress: req.shippingAddress,
+      paymentMethod: req.paymentMethod,
+      totalAmount,
+      status: "created",
+      createdAt: currentDate,
+    };
+
+    await saveOrder(ctx, newOrder);
+
+    return {
+      orderId,
+      totalAmount,
+      estimatedDeliveryDate,
+    };
+  };
 }
-
-// Now we can call primary with secondary01
-primary(secondary01);
 ```
 
-By passing `secondary01` as an argument to `primary`, we have decoupled `primary` from a specific implementation. This means we can easily change the behavior of `primary` by injecting a different function:
+## Secondary Functions
 
-```typescript
-function secondary02() {}
+Secondary functions typically handle operations such as:
 
-// Call primary with secondary02
-primary(secondary02);
-```
+- Retrieving the current time (`GetCurrentDate`)
+- Generating random values (`GenerateId`)
+- Fetching data from a database (e.g., `FindOrderById`)
+- Saving data to a database (`SaveOrder`)
+- Calling external services (e.g., API calls to other microservices)
 
-Since the `primary` function now depends on the function type alias `SomeType` instead of a specific function, we can replace the function passed to `primary` without modifying its code. This makes our code more flexible and easier to maintain.
+These secondary functions are connected to primary functions by being passed as parameters to the primary function implementation.
 
-In summary, by using function type aliases and dependency injection, we can decouple functions and achieve greater flexibility in our code. This technique helps in creating more modular and maintainable codebases.
-
----
+This pattern allows for better separation of concerns, easier testing, and improved modularity in your TypeScript framework.

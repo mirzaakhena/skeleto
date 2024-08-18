@@ -8,8 +8,8 @@ import { Context, FuncInstanceMetadata } from "./type.js";
  * Singleton instance of skeleto
  *
  *   ```
- *   const application = await Skeleto.getInstance().startScan("./src/app");
- *   const helloworld = application.getContainer().get("HelloWorld")?.funcInstance as ActionHandler;
+ *   const application = await Skeleto.start("./src/app");
+ *   const helloworld = application.getContainer().get("HelloWorld")?.getInstance() as ActionHandler;
  *   ```
  */
 export class Skeleto {

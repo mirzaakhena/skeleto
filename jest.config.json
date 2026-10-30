@@ -14,6 +14,7 @@
     "^(\\.{1,2}/.*)\\.js$": "$1"
   },
   "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.ts?$",
+  "testPathIgnorePatterns": ["/node_modules/", "<rootDir>/example/"],
   "moduleFileExtensions": ["ts", "js", "json", "node"],
   "collectCoverage": true,
   "clearMocks": true,

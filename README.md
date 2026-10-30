@@ -195,7 +195,7 @@ const application = await Skeleto.start("./src/app", {
     Controller: {
       requiresTypeArguments: true,
       validate: (data) => (data.path ? undefined : "needs a path"),
-      fields: {
+      requestFields: {
         RequestPart: {
           validate: (data) => (["body", "query", "param", "header", "local"].includes(data) ? undefined : "has an unknown part"),
         },
@@ -209,7 +209,7 @@ const application = await Skeleto.start("./src/app", {
 ```
 
 - `decorators` lists the decorators used on functions, on their function types and on payload types.
-- `fields` lists the field decorators owned by a decorator. `@RequestPart` above is valid only on a function that uses `@Controller`, so removing `@Controller` while leaving `@RequestPart` behind is an error.
+- `requestFields` and `responseFields` list the field decorators owned by a decorator. `@RequestPart` above is written on a Request field of an `@Action`, and is valid only when that `@Action` also uses `@Controller`. Writing it on a Response field, or removing `@Controller` while leaving `@RequestPart` behind, is an error.
 - `fieldDecorators` lists the field decorators that do not belong to any decorator, and they are valid on any function.
 
 With either list, the startup stops before any of your functions run when a decorator is not registered, is used in the wrong place, has invalid JSON, or breaks its rule. All problems are reported at once. `@Action`, `@Config`, `@Wrapper` and standard JSDoc tags like `@param` are always allowed. Decorators inside a payload type are checked only on an `@Action` with `{"readTypeArguments": true}`, because that is when Skeleto reads them. Without these lists, every decorator is accepted as before.

@@ -186,9 +186,14 @@ export type DecoratorRule = {
   validate?: (data: any, functionMetadata: FuncMetadata) => string | undefined;
 
   /**
-   * decorators of the Request and Response fields owned by this decorator, valid only on a function that uses it
+   * decorators of the Request fields owned by this decorator, valid only on a function that uses it
    */
-  fields?: Record<string, FieldDecoratorRule>;
+  requestFields?: Record<string, FieldDecoratorRule>;
+
+  /**
+   * decorators of the Response fields owned by this decorator, valid only on a function that uses it
+   */
+  responseFields?: Record<string, FieldDecoratorRule>;
 };
 
 /**

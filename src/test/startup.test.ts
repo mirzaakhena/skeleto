@@ -222,8 +222,48 @@ describe("Skeleto startup", () => {
 
     const decorators = {
       Transaction: {},
-      Controller: { requiresTypeArguments: true, validate: everyFieldHasRequestPart, fields: { RequestPart: requestPart } },
+      Controller: { requiresTypeArguments: true, validate: everyFieldHasRequestPart, requestFields: { RequestPart: requestPart }, responseFields: { ResponsePart: {} } },
     };
+
+    const withResponse = (responseField: string) => `
+      type Handler<A, B> = (ctx: any, req: A) => Promise<B>;
+      type Req = {
+        /** @RequestPart body */
+        email: string;
+      };
+      type Res = {
+        /** ${responseField} */
+        id: string;
+      };
+      export type Do = Handler<Req, Res>;
+      /**
+       * @Action {"readTypeArguments": true}
+       * @Controller
+       */
+      export function implDo(): Do { return async () => ({ id: "" }); }
+    `;
+
+    it("accepts a decorator on the kind of field it is registered for", async () => {
+      const directory = writeFixture("registry_response_ok", { "app.ts": withResponse("@ResponsePart") });
+
+      const skeleto = await Skeleto.start(directory, { decorators });
+
+      expect(skeleto.getContainer().has("Do")).toBe(true);
+    });
+
+    it("rejects a request field decorator used on a response field", async () => {
+      const directory = writeFixture("registry_request_on_response", { "app.ts": withResponse("@RequestPart body") });
+
+      await expect(Skeleto.start(directory, { decorators })).rejects.toThrow("field id: decorator @RequestPart can only be used on a Request field");
+    });
+
+    it("rejects a response field decorator used on a request field", async () => {
+      const directory = writeFixture("registry_response_on_request", {
+        "app.ts": withResponse("@ResponsePart").replace("@RequestPart body", "@ResponsePart"),
+      });
+
+      await expect(Skeleto.start(directory, { decorators })).rejects.toThrow("field email: decorator @ResponsePart can only be used on a Response field");
+    });
 
     const controllerAction = '* @Action {"readTypeArguments": true}\n * @Controller';
     const completeRequest = (part: string) => `

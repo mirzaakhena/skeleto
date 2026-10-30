@@ -469,7 +469,7 @@ function validateDecorators(metadatas: FuncMetadata[], options: SkeletoOptions) 
 
   const isMainDecorator = (name: string) => InjectableDecorator.some((x) => x === name);
   const hasInvalidJson = (decorator: Decorator) => typeof decorator.data === "string" && decorator.data.startsWith("{");
-  const getOwners = (name: string) => Object.keys(decoratorRules).filter((owner) => decoratorRules[owner].fields?.[name]);
+  const getOwners = (name: string, fieldsKey: "requestFields" | "responseFields") => Object.keys(decoratorRules).filter((owner) => decoratorRules[owner][fieldsKey]?.[name]);
 
   metadatas.forEach((metadata) => {
     const hasTypeArguments = metadata.mainDecorator.data?.["readTypeArguments"] === true;
@@ -487,7 +487,7 @@ function validateDecorators(metadatas: FuncMetadata[], options: SkeletoOptions) 
 
       const rule = decoratorRules[decorator.name];
       if (!rule) {
-        const isFieldDecorator = fieldRules[decorator.name] || getOwners(decorator.name).length > 0;
+        const isFieldDecorator = fieldRules[decorator.name] || getOwners(decorator.name, "requestFields").length > 0 || getOwners(decorator.name, "responseFields").length > 0;
         problems.push(`${label} ${isFieldDecorator ? "can only be used on a field" : "is not registered"}`);
         return;
       }
@@ -501,7 +501,7 @@ function validateDecorators(metadatas: FuncMetadata[], options: SkeletoOptions) 
       if (message) problems.push(`${label} ${message}`);
     };
 
-    const checkFieldDecorator = (field: TypeField, decorator: Decorator) => {
+    const checkFieldDecorator = (fieldsKey: "requestFields" | "responseFields", field: TypeField, decorator: Decorator) => {
       const label = `${metadata.name}: field ${field.name}: decorator @${decorator.name}`;
 
       if (hasInvalidJson(decorator)) {
@@ -511,13 +511,17 @@ function validateDecorators(metadatas: FuncMetadata[], options: SkeletoOptions) 
 
       if (standardJsDocTags.has(decorator.name)) return;
 
-      const owners = getOwners(decorator.name);
+      const owners = getOwners(decorator.name, fieldsKey);
       const owner = owners.find((x) => functionDecorators.some((y) => y.name === x));
-      const rule = owner ? decoratorRules[owner].fields?.[decorator.name] : fieldRules[decorator.name];
+      const rule = owner ? decoratorRules[owner][fieldsKey]?.[decorator.name] : fieldRules[decorator.name];
 
       if (!rule) {
+        const otherFieldsKey = fieldsKey === "requestFields" ? "responseFields" : "requestFields";
+
         if (owners.length > 0) {
           problems.push(`${label} requires ${owners.map((x) => `@${x}`).join(" or ")} on the function`);
+        } else if (getOwners(decorator.name, otherFieldsKey).length > 0) {
+          problems.push(`${label} can only be used on a ${otherFieldsKey === "requestFields" ? "Request" : "Response"} field`);
         } else if (decoratorRules[decorator.name] || isMainDecorator(decorator.name)) {
           problems.push(`${label} cannot be used on a field`);
         } else {
@@ -532,10 +536,11 @@ function validateDecorators(metadatas: FuncMetadata[], options: SkeletoOptions) 
 
     [metadata.mainDecorator, ...functionDecorators].forEach(checkDecorator);
 
-    [metadata.request, metadata.response].forEach((payload) => {
-      payload?.decorators?.forEach(checkDecorator);
-      payload?.structure?.forEach((field) => field.decorators.forEach((decorator) => checkFieldDecorator(field, decorator)));
-    });
+    metadata.request?.decorators?.forEach(checkDecorator);
+    metadata.request?.structure?.forEach((field) => field.decorators.forEach((decorator) => checkFieldDecorator("requestFields", field, decorator)));
+
+    metadata.response?.decorators?.forEach(checkDecorator);
+    metadata.response?.structure?.forEach((field) => field.decorators.forEach((decorator) => checkFieldDecorator("responseFields", field, decorator)));
   });
 
   if (problems.length > 0) {

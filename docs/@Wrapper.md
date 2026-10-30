@@ -13,7 +13,7 @@ export function func03(): MyLogger {
 
       // before function call
 
-      const result = ah(ctx, req);
+      const result = await ah(ctx, req);
 
       // after  function call
 

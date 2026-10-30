@@ -58,6 +58,7 @@ type Response = {
 export type OrderProcessReturn = ActionHandler<Request, Response>;
 
 // the function type implementation
+/** @Action */
 export function implOrderProcessReturn(): OrderProcessReturn {
   return async (ctx, req) => {
     // Implementation goes here
@@ -94,6 +95,7 @@ type Response = {
 
 export type OrderCreateNew = ActionHandler<Request, Response>;
 
+/** @Action */
 export function implOrderCreateNew(): OrderCreateNew {
   return async (ctx, req) => {
     // Implementation goes here
@@ -148,6 +150,7 @@ type SaveOrder = ActionHandler<
   void
 >;
 
+/** @Action */
 export function implOrderCreateNew(generateId: GenerateId, getCurrentDate: GetCurrentDate, saveOrder: SaveOrder): OrderCreateNew {
   return async (ctx, req) => {
     if (req.items.length === 0) {

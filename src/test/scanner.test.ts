@@ -1,5 +1,6 @@
 // src/test/scanner.test.ts
 
+import { resolve } from "node:path";
 import { Skeleto } from "../core/skeleto.js";
 import { FuncInstanceMetadata } from "../core/type.js";
 
@@ -43,7 +44,7 @@ describe("Function Utilities", () => {
       ],
       request: {
         name: "Request",
-        path: "/Users/mirza/Workspace/skeleto/src/test/sample/test1_file.ts",
+        path: resolve("src/test/sample/test1_file.ts"),
         structure: [
           {
             decorators: [
@@ -87,7 +88,7 @@ describe("Function Utilities", () => {
       },
       response: {
         name: "index-1",
-        path: "/Users/mirza/Workspace/skeleto/src/test/sample/test1_file.ts",
+        path: resolve("src/test/sample/test1_file.ts"),
         structure: [
           {
             decorators: [

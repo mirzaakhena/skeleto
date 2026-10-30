@@ -162,7 +162,7 @@ export function implAppConfig(dbConfig: DatabaseConfig): AppConfig {
 
 ### `@Wrapper`
 
-The `@Wrapper` decorator functions as middleware. It's used to wrap functions decorated with `@Action` to add capabilities such as logging, transactions, error handling, and more. The outer closure function of a `@Wrapper` decorated function can have parameters. These parameters can be injected by `@Config` and `@Action` functions. `@Wrapper` functions cannot be injected into other functions. This is the example to demonstrate the logging:
+The `@Wrapper` decorator functions as middleware. It's used to wrap functions decorated with `@Action` to add capabilities such as logging, transactions, error handling, and more. The outer closure function of a `@Wrapper` decorated function can have parameters. These parameters can be injected by `@Config` functions. `@Wrapper` functions cannot be injected into other functions, and breaking either rule results in an error during the application startup. This is the example to demonstrate the logging:
 
 ```typescript
 export type Logging = WrapperHandler;

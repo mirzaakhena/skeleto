@@ -199,10 +199,10 @@ Here’s an another example demonstrating how you can use Dependency Injection t
    const ctx: Context = { data: {}, traceId: "12345", date: new Date() };
 
    // Using real database
-   const registerUserHandler = registerUser(realFindUserByEmail, realSaveUser);
+   const registerUserHandler = registerUser(realFindUserByEmail, realSaveUser, realGenerateUniqueId);
 
    // Or using mock database
-   // const registerUserHandler = registerUser(mockFindUserByEmail, mockSaveUser);
+   // const registerUserHandler = registerUser(mockFindUserByEmail, mockSaveUser, mockGenerateUniqueId);
 
    try {
      await registerUserHandler(ctx, { email: "john.doe@example.com", name: "John Doe" });

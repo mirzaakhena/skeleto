@@ -170,3 +170,26 @@ export type Payload = {
 };
 
 export const InjectableDecorator = ["Config", "Wrapper", "Action"] as const;
+
+/**
+ * The rule of a custom decorator registered at startup
+ */
+export type DecoratorRule = {
+  /**
+   * the decorator can only be used on an `@Action` with `{"readTypeArguments": true}`
+   */
+  requiresTypeArguments?: boolean;
+
+  /**
+   * returns an error message when the decorator is used incorrectly
+   */
+  validate?: (data: any, functionMetadata: FuncMetadata) => string | undefined;
+};
+
+export type SkeletoOptions = {
+  /**
+   * When provided, using a decorator outside this list, or a decorator with invalid JSON, stops the startup.
+   * The main decorators and standard JSDoc tags like `@param` are always allowed.
+   */
+  decorators?: Record<string, DecoratorRule>;
+};

@@ -184,6 +184,25 @@ export function implLogging(logConfig: LogConfig, metrics: MetricsService): Logg
 - If a cyclic dependency is detected, Skeleto will throw an error during the application startup.
 - The order of definition doesn't matter; Skeleto will determine the correct order of instantiation based on the dependency graph.
 
+### Registering Decorators
+
+Custom decorators like `@Transaction` and `@Controller` are plain text, so a typo like `@Transction` would silently turn the transaction off. To catch this, you can optionally register the decorators your application uses:
+
+```typescript
+const application = await Skeleto.start("./src/app", {
+  decorators: {
+    Transaction: {},
+    RequestPart: {},
+    Controller: {
+      requiresTypeArguments: true,
+      validate: (data) => (data.path ? undefined : "needs a path"),
+    },
+  },
+});
+```
+
+With this option, the startup stops before any of your functions run when a decorator is not registered, has invalid JSON, or breaks its rule. All problems are reported at once. `@Action`, `@Config`, `@Wrapper` and standard JSDoc tags like `@param` are always allowed. Decorators inside a payload type are checked only on an `@Action` with `{"readTypeArguments": true}`, because that is when Skeleto reads them. Without this option, every decorator is accepted as before.
+
 ### Best Practices
 
 When using Skeleto, consider the following best practices:

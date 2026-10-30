@@ -194,6 +194,89 @@ describe("Skeleto startup", () => {
     expect(container.get("Owned")?.getMetadata().additionalDecorators).toEqual([]);
   });
 
+  describe("decorator registration", () => {
+    const usecase = (decorators: string) => `
+      type Handler<A> = (ctx: any, req: A) => Promise<void>;
+      type Req = {
+        /** @RequestPart body */
+        email: string;
+        name: string;
+      };
+      export type Do = Handler<Req>;
+      /**
+       * Registers a person.
+       * @param none is a standard JSDoc tag
+       ${decorators}
+       */
+      export function implDo(): Do { return async () => {}; }
+    `;
+
+    const everyFieldHasRequestPart = (_: any, fm: any) => {
+      const missing = fm.request?.structure?.filter((f: any) => !f.decorators.some((d: any) => d.name === "RequestPart"));
+      return missing?.length ? `needs @RequestPart on: ${missing.map((f: any) => f.name).join(", ")}` : undefined;
+    };
+
+    const decorators = {
+      Transaction: {},
+      RequestPart: {},
+      Controller: { requiresTypeArguments: true, validate: everyFieldHasRequestPart },
+    };
+
+    it("keeps unregistered decorators allowed without the option", async () => {
+      const directory = writeFixture("registry_off", { "app.ts": usecase("* @Action\n * @Transction") });
+
+      const skeleto = await Skeleto.start(directory);
+
+      expect(skeleto.getContainer().has("Do")).toBe(true);
+    });
+
+    it("accepts registered decorators and standard JSDoc tags", async () => {
+      const directory = writeFixture("registry_ok", { "app.ts": usecase("* @Action\n * @Transaction") });
+
+      const skeleto = await Skeleto.start(directory, { decorators });
+
+      expect(skeleto.getContainer().has("Do")).toBe(true);
+    });
+
+    it("rejects a misspelled decorator", async () => {
+      const directory = writeFixture("registry_typo", { "app.ts": usecase("* @Action\n * @Transction") });
+
+      await expect(Skeleto.start(directory, { decorators })).rejects.toThrow("Do: decorator @Transction is not registered");
+    });
+
+    it("rejects a field decorator that is not registered", async () => {
+      const directory = writeFixture("registry_field", { "app.ts": usecase('* @Action {"readTypeArguments": true}') });
+
+      await expect(Skeleto.start(directory, { decorators: { Transaction: {} } })).rejects.toThrow("decorator @RequestPart is not registered");
+    });
+
+    it("rejects invalid JSON", async () => {
+      const directory = writeFixture("registry_json", { "app.ts": usecase('* @Action\n * @Transaction {"a": 1,}') });
+
+      await expect(Skeleto.start(directory, { decorators })).rejects.toThrow("decorator @Transaction has invalid JSON");
+    });
+
+    it("rejects a decorator missing readTypeArguments", async () => {
+      const directory = writeFixture("registry_requires", { "app.ts": usecase("* @Action\n * @Controller") });
+
+      await expect(Skeleto.start(directory, { decorators })).rejects.toThrow('decorator @Controller requires @Action {"readTypeArguments": true}');
+    });
+
+    it("reports a custom validation message before any function runs", async () => {
+      const directory = writeFixture("registry_validate", {
+        "app.ts": usecase('* @Action {"readTypeArguments": true}\n * @Controller') + `\nthrow new Error("module must not be imported");`,
+      });
+
+      await expect(Skeleto.start(directory, { decorators })).rejects.toThrow("decorator @Controller needs @RequestPart on: name");
+    });
+
+    it("reports all problems at once", async () => {
+      const directory = writeFixture("registry_all", { "app.ts": usecase("* @Action\n * @Transction\n * @Logging") });
+
+      await expect(Skeleto.start(directory, { decorators })).rejects.toThrow(/@Transction is not registered\n.*@Logging is not registered/);
+    });
+  });
+
   it("parses decorator JSON that starts on the next line", async () => {
     const directory = writeFixture("next_line_json", {
       "app.ts": `

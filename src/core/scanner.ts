@@ -15,7 +15,7 @@ import {
   UnionTypeNode,
 } from "ts-morph";
 import { DependencyResolver } from "./dependency_resolver.js";
-import { Decorator, FuncInstanceMetadata, FuncMetadata, InjectableDecorator, TypeField, TypeOf } from "./type.js";
+import { Decorator, FuncInstanceMetadata, FuncMetadata, InjectableDecorator, SkeletoOptions, TypeField, TypeOf } from "./type.js";
 
 type FuncDeclMetadata = { funcMetadata: FuncMetadata; funcDeclaration: FunctionDeclaration };
 
@@ -450,6 +450,59 @@ async function extractTypeArguments(funcDecl: FunctionDeclaration, metadata: Fun
   });
 }
 
+// prettier-ignore
+const standardJsDocTags = new Set([
+  "abstract", "author", "deprecated", "example", "exception", "inheritDoc", "internal", "license", "link", "override", "param",
+  "private", "protected", "public", "readonly", "remarks", "return", "returns", "see", "since", "template", "throws", "todo", "type", "typedef", "version",
+]);
+
+/**
+ * Ensures every decorator follows the rules registered at startup. All problems are reported at once.
+ * @param metadatas - The metadata of all scanned functions, with their type arguments already extracted.
+ * @param decoratorRules - The registered custom decorators.
+ */
+function validateDecorators(metadatas: FuncMetadata[], decoratorRules: NonNullable<SkeletoOptions["decorators"]>) {
+  const problems: string[] = [];
+
+  metadatas.forEach((metadata) => {
+    const hasTypeArguments = metadata.mainDecorator.data?.["readTypeArguments"] === true;
+
+    const check = (decorator: Decorator) => {
+      if (typeof decorator.data === "string" && decorator.data.startsWith("{")) {
+        problems.push(`${metadata.name}: decorator @${decorator.name} has invalid JSON`);
+        return;
+      }
+
+      if (InjectableDecorator.some((x) => x === decorator.name) || standardJsDocTags.has(decorator.name)) return;
+
+      const rule = decoratorRules[decorator.name];
+      if (!rule) {
+        problems.push(`${metadata.name}: decorator @${decorator.name} is not registered`);
+        return;
+      }
+
+      if (rule.requiresTypeArguments && !hasTypeArguments) {
+        problems.push(`${metadata.name}: decorator @${decorator.name} requires @Action {"readTypeArguments": true}`);
+        return;
+      }
+
+      const message = rule.validate?.(decorator.data, metadata);
+      if (message) problems.push(`${metadata.name}: decorator @${decorator.name} ${message}`);
+    };
+
+    [metadata.mainDecorator, ...metadata.additionalDecorators, ...(metadata.returnTypeDecorator ?? [])].forEach(check);
+
+    [metadata.request, metadata.response].forEach((payload) => {
+      payload?.decorators?.forEach(check);
+      payload?.structure?.forEach((field) => field.decorators.forEach(check));
+    });
+  });
+
+  if (problems.length > 0) {
+    throw new Error(`Invalid decorator usage:\n  - ${problems.join("\n  - ")}`);
+  }
+}
+
 // Apply wrappers
 function applyWrappers(currentResult: any, metadata: FuncMetadata, wrapperMetadatas: FuncMetadata[], funcResultMap: Map<string, FuncInstanceMetadata>) {
   const sortBasedOrdinal = wrapperMetadatas.sort((a, b) => ((a.mainDecorator.data.ordinal ?? 0) as number) - ((b.mainDecorator.data.ordinal ?? 0) as number));
@@ -485,10 +538,6 @@ async function resolveFunctions(
 
     printToLog("  funcDecl             :", funcDecl.getName());
 
-    if (funcMetadata.mainDecorator.name === "Action" && funcMetadata.mainDecorator.data?.["readTypeArguments"]) {
-      await extractTypeArguments(funcDecl, funcMetadata);
-    }
-
     const module = await import(funcDecl.getSourceFile().getFilePath());
 
     const funcName = funcDecl.getName() as string;
@@ -509,9 +558,10 @@ async function resolveFunctions(
 /**
  * Scans the project for functions, sorts them by kind, resolves their dependencies and wrappers, and returns the results.
  * @param project - The project containing the source files.
+ * @param options - The startup options.
  * @returns A map of function names to their resolved instances and metadata.
  */
-export async function scanFunctions(project: Project) {
+export async function scanFunctions(project: Project, options?: SkeletoOptions) {
   //
 
   printToLog("scanned function:");
@@ -519,6 +569,17 @@ export async function scanFunctions(project: Project) {
 
   printToLog("sort by dependencies");
   const { configMetadatas, wrapperMetadatas, actionMetadatas } = sortFunctionsByKind(funcMap);
+
+  // read the metadata before any function runs, so an invalid usage stops the startup without side effects
+  for (const funcMetadata of actionMetadatas) {
+    if (funcMetadata.mainDecorator.data?.["readTypeArguments"]) {
+      await extractTypeArguments(funcMap.get(funcMetadata.name)?.funcDeclaration as FunctionDeclaration, funcMetadata);
+    }
+  }
+
+  if (options?.decorators) {
+    validateDecorators([...configMetadatas, ...wrapperMetadatas, ...actionMetadatas], options.decorators);
+  }
 
   const funcResultMap: Map<string, FuncInstanceMetadata> = new Map();
 

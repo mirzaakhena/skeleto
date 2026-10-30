@@ -3,7 +3,7 @@
 import { resolve } from "node:path";
 import { Project } from "ts-morph";
 import { scanFunctions } from "./scanner.js";
-import { Context, FuncInstanceMetadata } from "./type.js";
+import { Context, FuncInstanceMetadata, SkeletoOptions } from "./type.js";
 
 /**
  * One instance of skeleto per scanned directory
@@ -23,14 +23,15 @@ export class Skeleto {
   /**
    *
    * @param directory where it start to scan
+   * @param options applied on the first start of the directory only
    * @returns instance containers
    */
-  public static async start(directory: string = "src") {
+  public static async start(directory: string = "src", options?: SkeletoOptions) {
     const key = resolve(directory);
 
     let instance = Skeleto.instances.get(key);
     if (!instance) {
-      instance = Skeleto.create(directory);
+      instance = Skeleto.create(directory, options);
       Skeleto.instances.set(key, instance);
 
       // a failed start must not be remembered, so the next start can scan again
@@ -40,7 +41,7 @@ export class Skeleto {
     return instance;
   }
 
-  private static async create(directory: string) {
+  private static async create(directory: string, options?: SkeletoOptions) {
     const project = new Project();
     const sourceFiles = project.addSourceFilesAtPaths(`${directory}/**/*.ts`);
     if (sourceFiles.length === 0) {
@@ -48,7 +49,7 @@ export class Skeleto {
     }
 
     const skeleto = new Skeleto();
-    skeleto.container = await scanFunctions(project);
+    skeleto.container = await scanFunctions(project, options);
     return skeleto;
   }
 

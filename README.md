@@ -192,16 +192,27 @@ Custom decorators like `@Transaction` and `@Controller` are plain text, so a typ
 const application = await Skeleto.start("./src/app", {
   decorators: {
     Transaction: {},
-    RequestPart: {},
     Controller: {
       requiresTypeArguments: true,
       validate: (data) => (data.path ? undefined : "needs a path"),
+      fields: {
+        RequestPart: {
+          validate: (data) => (["body", "query", "param", "header", "local"].includes(data) ? undefined : "has an unknown part"),
+        },
+      },
     },
+  },
+  fieldDecorators: {
+    Required: {},
   },
 });
 ```
 
-With this option, the startup stops before any of your functions run when a decorator is not registered, has invalid JSON, or breaks its rule. All problems are reported at once. `@Action`, `@Config`, `@Wrapper` and standard JSDoc tags like `@param` are always allowed. Decorators inside a payload type are checked only on an `@Action` with `{"readTypeArguments": true}`, because that is when Skeleto reads them. Without this option, every decorator is accepted as before.
+- `decorators` lists the decorators used on functions, on their function types and on payload types.
+- `fields` lists the field decorators owned by a decorator. `@RequestPart` above is valid only on a function that uses `@Controller`, so removing `@Controller` while leaving `@RequestPart` behind is an error.
+- `fieldDecorators` lists the field decorators that do not belong to any decorator, and they are valid on any function.
+
+With either list, the startup stops before any of your functions run when a decorator is not registered, is used in the wrong place, has invalid JSON, or breaks its rule. All problems are reported at once. `@Action`, `@Config`, `@Wrapper` and standard JSDoc tags like `@param` are always allowed. Decorators inside a payload type are checked only on an `@Action` with `{"readTypeArguments": true}`, because that is when Skeleto reads them. Without these lists, every decorator is accepted as before.
 
 ### Best Practices
 

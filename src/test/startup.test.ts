@@ -216,11 +216,90 @@ describe("Skeleto startup", () => {
       return missing?.length ? `needs @RequestPart on: ${missing.map((f: any) => f.name).join(", ")}` : undefined;
     };
 
+    const requestPart = {
+      validate: (data: any) => (["body", "query", "param"].includes(data) ? undefined : "has an unknown part"),
+    };
+
     const decorators = {
       Transaction: {},
-      RequestPart: {},
-      Controller: { requiresTypeArguments: true, validate: everyFieldHasRequestPart },
+      Controller: { requiresTypeArguments: true, validate: everyFieldHasRequestPart, fields: { RequestPart: requestPart } },
     };
+
+    const controllerAction = '* @Action {"readTypeArguments": true}\n * @Controller';
+    const completeRequest = (part: string) => `
+      type Handler<A> = (ctx: any, req: A) => Promise<void>;
+      type Req = {
+        /** @RequestPart ${part} */
+        email: string;
+      };
+      export type Do = Handler<Req>;
+      /**
+       ${controllerAction}
+       */
+      export function implDo(): Do { return async () => {}; }
+    `;
+
+    it("accepts a field decorator on a function using its owner", async () => {
+      const directory = writeFixture("registry_owner_ok", { "app.ts": completeRequest("body") });
+
+      const skeleto = await Skeleto.start(directory, { decorators });
+
+      expect(skeleto.getContainer().has("Do")).toBe(true);
+    });
+
+    it("rejects a field decorator with a wrong value", async () => {
+      const directory = writeFixture("registry_owner_value", { "app.ts": completeRequest("bodi") });
+
+      await expect(Skeleto.start(directory, { decorators })).rejects.toThrow("Do: field email: decorator @RequestPart has an unknown part");
+    });
+
+    it("rejects a field decorator left behind after its owner is removed", async () => {
+      const directory = writeFixture("registry_owner_removed", { "app.ts": usecase('* @Action {"readTypeArguments": true}') });
+
+      await expect(Skeleto.start(directory, { decorators })).rejects.toThrow("field email: decorator @RequestPart requires @Controller on the function");
+    });
+
+    it("rejects a field decorator used on a function", async () => {
+      const directory = writeFixture("registry_field_on_function", { "app.ts": usecase("* @Action\n * @RequestPart body") });
+
+      await expect(Skeleto.start(directory, { decorators })).rejects.toThrow("Do: decorator @RequestPart can only be used on a field");
+    });
+
+    it("rejects a function decorator used on a field", async () => {
+      const directory = writeFixture("registry_function_on_field", {
+        "app.ts": `
+          type Handler<A> = (ctx: any, req: A) => Promise<void>;
+          type Req = {
+            /** @Transaction */
+            email: string;
+          };
+          export type Do = Handler<Req>;
+          /** @Action {"readTypeArguments": true} */
+          export function implDo(): Do { return async () => {}; }
+        `,
+      });
+
+      await expect(Skeleto.start(directory, { decorators })).rejects.toThrow("field email: decorator @Transaction cannot be used on a field");
+    });
+
+    it("accepts a general field decorator without an owner", async () => {
+      const directory = writeFixture("registry_general_field", {
+        "app.ts": `
+          type Handler<A> = (ctx: any, req: A) => Promise<void>;
+          type Req = {
+            /** @Required */
+            email: string;
+          };
+          export type Do = Handler<Req>;
+          /** @Action {"readTypeArguments": true} */
+          export function implDo(): Do { return async () => {}; }
+        `,
+      });
+
+      const skeleto = await Skeleto.start(directory, { fieldDecorators: { Required: {} } });
+
+      expect(skeleto.getContainer().has("Do")).toBe(true);
+    });
 
     it("keeps unregistered decorators allowed without the option", async () => {
       const directory = writeFixture("registry_off", { "app.ts": usecase("* @Action\n * @Transction") });

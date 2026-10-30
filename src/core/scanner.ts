@@ -459,42 +459,82 @@ const standardJsDocTags = new Set([
 /**
  * Ensures every decorator follows the rules registered at startup. All problems are reported at once.
  * @param metadatas - The metadata of all scanned functions, with their type arguments already extracted.
- * @param decoratorRules - The registered custom decorators.
+ * @param options - The registered custom decorators.
  */
-function validateDecorators(metadatas: FuncMetadata[], decoratorRules: NonNullable<SkeletoOptions["decorators"]>) {
+function validateDecorators(metadatas: FuncMetadata[], options: SkeletoOptions) {
+  const decoratorRules = options.decorators ?? {};
+  const fieldRules = options.fieldDecorators ?? {};
+
   const problems: string[] = [];
+
+  const isMainDecorator = (name: string) => InjectableDecorator.some((x) => x === name);
+  const hasInvalidJson = (decorator: Decorator) => typeof decorator.data === "string" && decorator.data.startsWith("{");
+  const getOwners = (name: string) => Object.keys(decoratorRules).filter((owner) => decoratorRules[owner].fields?.[name]);
 
   metadatas.forEach((metadata) => {
     const hasTypeArguments = metadata.mainDecorator.data?.["readTypeArguments"] === true;
+    const functionDecorators = [...metadata.additionalDecorators, ...(metadata.returnTypeDecorator ?? [])];
 
-    const check = (decorator: Decorator) => {
-      if (typeof decorator.data === "string" && decorator.data.startsWith("{")) {
-        problems.push(`${metadata.name}: decorator @${decorator.name} has invalid JSON`);
+    const checkDecorator = (decorator: Decorator) => {
+      const label = `${metadata.name}: decorator @${decorator.name}`;
+
+      if (hasInvalidJson(decorator)) {
+        problems.push(`${label} has invalid JSON`);
         return;
       }
 
-      if (InjectableDecorator.some((x) => x === decorator.name) || standardJsDocTags.has(decorator.name)) return;
+      if (isMainDecorator(decorator.name) || standardJsDocTags.has(decorator.name)) return;
 
       const rule = decoratorRules[decorator.name];
       if (!rule) {
-        problems.push(`${metadata.name}: decorator @${decorator.name} is not registered`);
+        const isFieldDecorator = fieldRules[decorator.name] || getOwners(decorator.name).length > 0;
+        problems.push(`${label} ${isFieldDecorator ? "can only be used on a field" : "is not registered"}`);
         return;
       }
 
       if (rule.requiresTypeArguments && !hasTypeArguments) {
-        problems.push(`${metadata.name}: decorator @${decorator.name} requires @Action {"readTypeArguments": true}`);
+        problems.push(`${label} requires @Action {"readTypeArguments": true}`);
         return;
       }
 
       const message = rule.validate?.(decorator.data, metadata);
-      if (message) problems.push(`${metadata.name}: decorator @${decorator.name} ${message}`);
+      if (message) problems.push(`${label} ${message}`);
     };
 
-    [metadata.mainDecorator, ...metadata.additionalDecorators, ...(metadata.returnTypeDecorator ?? [])].forEach(check);
+    const checkFieldDecorator = (field: TypeField, decorator: Decorator) => {
+      const label = `${metadata.name}: field ${field.name}: decorator @${decorator.name}`;
+
+      if (hasInvalidJson(decorator)) {
+        problems.push(`${label} has invalid JSON`);
+        return;
+      }
+
+      if (standardJsDocTags.has(decorator.name)) return;
+
+      const owners = getOwners(decorator.name);
+      const owner = owners.find((x) => functionDecorators.some((y) => y.name === x));
+      const rule = owner ? decoratorRules[owner].fields?.[decorator.name] : fieldRules[decorator.name];
+
+      if (!rule) {
+        if (owners.length > 0) {
+          problems.push(`${label} requires ${owners.map((x) => `@${x}`).join(" or ")} on the function`);
+        } else if (decoratorRules[decorator.name] || isMainDecorator(decorator.name)) {
+          problems.push(`${label} cannot be used on a field`);
+        } else {
+          problems.push(`${label} is not registered`);
+        }
+        return;
+      }
+
+      const message = rule.validate?.(decorator.data, metadata);
+      if (message) problems.push(`${label} ${message}`);
+    };
+
+    [metadata.mainDecorator, ...functionDecorators].forEach(checkDecorator);
 
     [metadata.request, metadata.response].forEach((payload) => {
-      payload?.decorators?.forEach(check);
-      payload?.structure?.forEach((field) => field.decorators.forEach(check));
+      payload?.decorators?.forEach(checkDecorator);
+      payload?.structure?.forEach((field) => field.decorators.forEach((decorator) => checkFieldDecorator(field, decorator)));
     });
   });
 
@@ -577,8 +617,8 @@ export async function scanFunctions(project: Project, options?: SkeletoOptions) 
     }
   }
 
-  if (options?.decorators) {
-    validateDecorators([...configMetadatas, ...wrapperMetadatas, ...actionMetadatas], options.decorators);
+  if (options?.decorators || options?.fieldDecorators) {
+    validateDecorators([...configMetadatas, ...wrapperMetadatas, ...actionMetadatas], options);
   }
 
   const funcResultMap: Map<string, FuncInstanceMetadata> = new Map();

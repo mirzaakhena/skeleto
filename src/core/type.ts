@@ -184,12 +184,28 @@ export type DecoratorRule = {
    * returns an error message when the decorator is used incorrectly
    */
   validate?: (data: any, functionMetadata: FuncMetadata) => string | undefined;
+
+  /**
+   * decorators of the Request and Response fields owned by this decorator, valid only on a function that uses it
+   */
+  fields?: Record<string, FieldDecoratorRule>;
 };
+
+/**
+ * The rule of a custom decorator used on a Request or Response field
+ */
+export type FieldDecoratorRule = Pick<DecoratorRule, "validate">;
 
 export type SkeletoOptions = {
   /**
-   * When provided, using a decorator outside this list, or a decorator with invalid JSON, stops the startup.
+   * When `decorators` or `fieldDecorators` is provided, using a decorator outside these lists,
+   * or a decorator with invalid JSON, stops the startup.
    * The main decorators and standard JSDoc tags like `@param` are always allowed.
    */
   decorators?: Record<string, DecoratorRule>;
+
+  /**
+   * decorators of the Request and Response fields that do not belong to any decorator, valid on any function
+   */
+  fieldDecorators?: Record<string, FieldDecoratorRule>;
 };

@@ -6,6 +6,7 @@ export {
   Context,
   Decorator,
   DecoratorRule,
+  FieldDecoratorRule,
   FuncInstanceMetadata,
   FuncMetadata,
   SkeletoOptions,

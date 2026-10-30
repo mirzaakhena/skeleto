@@ -1,7 +1,8 @@
 {
   "name": "skeleto",
-  "version": "0.0.1033",
+  "version": "0.0.1044",
   "description": "Awesome Backend Framework",
+  "license": "MIT",
   "author": {
     "email": "mirza.akhena@gmail.com",
     "name": "Mirza Akhena"
@@ -23,7 +24,7 @@
   "types": "dist/index.d.ts",
   "devDependencies": {
     "@types/jest": "^29.5.12",
-    "@types/node": "^20.4.2",
+    "@types/node": "^20.17.14",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.5",
     "ts-node": "^10.9.1",
@@ -31,7 +32,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "ts-morph": "^22.0.0"
+    "ts-morph": "^25.0.0"
   },
   "scripts": {
     "clean": "rm -rf dist coverage",

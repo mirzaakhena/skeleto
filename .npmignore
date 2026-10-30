@@ -3,9 +3,14 @@ test/
 node_modules/
 *.log
 .gitignore
+.github/
+.env
+**/.env
 tsconfig.json
-jest.config.js
+jest.config.json
 package-lock.json
 coverage/
-src/example/
+example/
+benchmarking/
+note.txt
 **/*.log

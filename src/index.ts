@@ -5,8 +5,11 @@ export {
   ActionHandler,
   Context,
   Decorator,
+  DecoratorRule,
+  FieldDecoratorRule,
   FuncInstanceMetadata,
   FuncMetadata,
+  SkeletoOptions,
   TypeField,
   WrapperHandler,
 } from "./core/type.js";

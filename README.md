@@ -162,7 +162,7 @@ export function implAppConfig(dbConfig: DatabaseConfig): AppConfig {
 
 ### `@Wrapper`
 
-The `@Wrapper` decorator functions as middleware. It's used to wrap functions decorated with `@Action` to add capabilities such as logging, transactions, error handling, and more. The outer closure function of a `@Wrapper` decorated function can have parameters. These parameters can be injected by `@Config` and `@Action` functions. `@Wrapper` functions cannot be injected into other functions. This is the example to demonstrate the logging:
+The `@Wrapper` decorator functions as middleware. It's used to wrap functions decorated with `@Action` to add capabilities such as logging, transactions, error handling, and more. The outer closure function of a `@Wrapper` decorated function can have parameters. These parameters can be injected by `@Config` functions. `@Wrapper` functions cannot be injected into other functions, and breaking either rule results in an error during the application startup. This is the example to demonstrate the logging:
 
 ```typescript
 export type Logging = WrapperHandler;
@@ -183,6 +183,36 @@ export function implLogging(logConfig: LogConfig, metrics: MetricsService): Logg
 - The framework ensures there are no cyclic dependencies by analyzing the dependency graph.
 - If a cyclic dependency is detected, Skeleto will throw an error during the application startup.
 - The order of definition doesn't matter; Skeleto will determine the correct order of instantiation based on the dependency graph.
+
+### Registering Decorators
+
+Custom decorators like `@Transaction` and `@Controller` are plain text, so a typo like `@Transction` would silently turn the transaction off. To catch this, you can optionally register the decorators your application uses:
+
+```typescript
+const application = await Skeleto.start("./src/app", {
+  decorators: {
+    Transaction: {},
+    Controller: {
+      requiresTypeArguments: true,
+      validate: (data) => (data.path ? undefined : "needs a path"),
+      requestFields: {
+        RequestPart: {
+          validate: (data) => (["body", "query", "param", "header", "local"].includes(data) ? undefined : "has an unknown part"),
+        },
+      },
+    },
+  },
+  fieldDecorators: {
+    Required: {},
+  },
+});
+```
+
+- `decorators` lists the decorators used on functions, on their function types and on payload types.
+- `requestFields` and `responseFields` list the field decorators owned by a decorator. `@RequestPart` above is written on a Request field of an `@Action`, and is valid only when that `@Action` also uses `@Controller`. Writing it on a Response field, or removing `@Controller` while leaving `@RequestPart` behind, is an error.
+- `fieldDecorators` lists the field decorators that do not belong to any decorator, and they are valid on any function.
+
+With either list, the startup stops before any of your functions run when a decorator is not registered, is used in the wrong place, has invalid JSON, or breaks its rule. All problems are reported at once. `@Action`, `@Config`, `@Wrapper` and standard JSDoc tags like `@param` are always allowed. Decorators inside a payload type are checked only on an `@Action` with `{"readTypeArguments": true}`, because that is when Skeleto reads them. Without these lists, every decorator is accepted as before.
 
 ### Best Practices
 

@@ -170,3 +170,47 @@ export type Payload = {
 };
 
 export const InjectableDecorator = ["Config", "Wrapper", "Action"] as const;
+
+/**
+ * The rule of a custom decorator registered at startup
+ */
+export type DecoratorRule = {
+  /**
+   * the decorator can only be used on an `@Action` with `{"readTypeArguments": true}`
+   */
+  requiresTypeArguments?: boolean;
+
+  /**
+   * returns an error message when the decorator is used incorrectly
+   */
+  validate?: (data: any, functionMetadata: FuncMetadata) => string | undefined;
+
+  /**
+   * decorators of the Request fields owned by this decorator, valid only on a function that uses it
+   */
+  requestFields?: Record<string, FieldDecoratorRule>;
+
+  /**
+   * decorators of the Response fields owned by this decorator, valid only on a function that uses it
+   */
+  responseFields?: Record<string, FieldDecoratorRule>;
+};
+
+/**
+ * The rule of a custom decorator used on a Request or Response field
+ */
+export type FieldDecoratorRule = Pick<DecoratorRule, "validate">;
+
+export type SkeletoOptions = {
+  /**
+   * When `decorators` or `fieldDecorators` is provided, using a decorator outside these lists,
+   * or a decorator with invalid JSON, stops the startup.
+   * The main decorators and standard JSDoc tags like `@param` are always allowed.
+   */
+  decorators?: Record<string, DecoratorRule>;
+
+  /**
+   * decorators of the Request and Response fields that do not belong to any decorator, valid on any function
+   */
+  fieldDecorators?: Record<string, FieldDecoratorRule>;
+};

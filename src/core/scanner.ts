@@ -15,7 +15,7 @@ import {
   UnionTypeNode,
 } from "ts-morph";
 import { DependencyResolver } from "./dependency_resolver.js";
-import { Decorator, FuncInstanceMetadata, FuncMetadata, InjectableDecorator, TypeField, TypeOf } from "./type.js";
+import { Decorator, FuncInstanceMetadata, FuncMetadata, InjectableDecorator, SkeletoOptions, TypeField, TypeOf } from "./type.js";
 
 type FuncDeclMetadata = { funcMetadata: FuncMetadata; funcDeclaration: FunctionDeclaration };
 
@@ -27,18 +27,20 @@ function getDecoratorMetadata(jsDocs: string[], source?: string) {
   const decorators: any[] = [];
 
   const pushDecorator = (currentDecorator: { name: string; data?: string }) => {
+    const data = currentDecorator.data?.trim();
+
     try {
       // If the data is a valid JSON string, parse it
-      if (currentDecorator.data?.startsWith("{")) {
+      if (data?.startsWith("{")) {
         decorators.push({
           name: currentDecorator.name,
-          data: JSON.parse(currentDecorator.data),
+          data: JSON.parse(data),
         });
       } else {
         // If the data is plain text
         decorators.push({
           name: currentDecorator.name,
-          data: currentDecorator.data?.trim(),
+          data,
         });
       }
     } catch (e) {
@@ -54,7 +56,8 @@ function getDecoratorMetadata(jsDocs: string[], source?: string) {
     let hasDecorator = false;
 
     lines.forEach((line) => {
-      const match = line.match(/@(\w+)\s*(.*)?/);
+      // A decorator must start the line, so "@" inside a sentence or an email address is ignored
+      const match = line.match(/^\s*@(\w+)\s*(.*)?/);
       if (match) {
         if (hasDecorator) {
           pushDecorator(currentDecorator);
@@ -88,7 +91,13 @@ function extractFunctions(project: Project): Map<string, FuncDeclMetadata> {
   type InjectableDecoratorType = TypeOf<typeof InjectableDecorator>;
 
   const getFunctionParameters = (func: FunctionDeclaration) => {
-    return func.getParameters().map((param) => getFunctionReturnTypeName(param.getTypeNode()));
+    return func.getParameters().map((param) => {
+      const typeNode = param.getTypeNode();
+      if (!typeNode) {
+        throw new Error(`Parameter ${param.getName()} of function ${func.getName()} in ${func.getSourceFile().getFilePath()} must have a type annotation.`);
+      }
+      return getFunctionReturnTypeName(typeNode);
+    });
   };
 
   project.getSourceFiles().forEach((sourceFile) => {
@@ -104,13 +113,20 @@ function extractFunctions(project: Project): Map<string, FuncDeclMetadata> {
       if (!returnTypeNode) return;
 
       const functionReturnTypeName = getFunctionReturnTypeName(returnTypeNode);
-      if (funcMap.has(functionReturnTypeName)) return;
 
       const decorators = getDecoratorMetadata(
         funcDeclaration.getJsDocs().map((x) => x.getInnerText()),
         `function ${funcName}`
       );
       if (!decorators.some((x) => InjectableDecorator.some((y) => y === x.name))) return;
+
+      const existing = funcMap.get(functionReturnTypeName)?.funcDeclaration;
+      if (existing) {
+        throw new Error(
+          `Type ${functionReturnTypeName} is returned by more than one function: ` +
+            `${existing.getName()} in ${existing.getSourceFile().getFilePath()} and ${funcName} in ${sourceFile.getFilePath()}.`
+        );
+      }
 
       let mainDecorator = {};
       const additionalDecorators: Decorator[] = [];
@@ -147,6 +163,28 @@ function extractFunctions(project: Project): Map<string, FuncDeclMetadata> {
 }
 
 /**
+ * Ensures every dependency is of a kind that is already instantiated, following the order Config, Wrapper, Action.
+ * @param funcMap - A map of function names to their metadata and declarations.
+ */
+function validateDependencyKinds(funcMap: Map<string, FuncDeclMetadata>) {
+  const allowedKinds: Record<TypeOf<typeof InjectableDecorator>, TypeOf<typeof InjectableDecorator>[]> = {
+    Config: ["Config"],
+    Wrapper: ["Config"],
+    Action: ["Config", "Action"],
+  };
+
+  funcMap.forEach(({ funcMetadata }) => {
+    const kind = funcMetadata.mainDecorator.name;
+    funcMetadata.dependencies.forEach((dep) => {
+      const depKind = funcMap.get(dep)?.funcMetadata.mainDecorator.name;
+      if (depKind && !allowedKinds[kind].includes(depKind)) {
+        throw new Error(`@${kind} ${funcMetadata.name} cannot depend on @${depKind} ${dep}. @${kind} can only depend on: ${allowedKinds[kind].map((x) => `@${x}`).join(", ")}.`);
+      }
+    });
+  });
+}
+
+/**
  * Sorts functions by their kind using a dependency resolver.
  * @param funcMap - A map of function names to their metadata and declarations.
  * @returns An object containing arrays of functions sorted by their kinds: config, wrapper, and action handlers.
@@ -159,6 +197,8 @@ function sortFunctionsByKind(funcMap: Map<string, FuncDeclMetadata>) {
   const nameAndDeps = Array.from(funcMap.values()).map((x) => ({ name: x.funcMetadata.name, dependencies: x.funcMetadata.dependencies }));
   const dr = new DependencyResolver(nameAndDeps);
   const orderedFunctions = dr.sortFunctions();
+
+  validateDependencyKinds(funcMap);
 
   orderedFunctions.forEach((x) => {
     //
@@ -268,14 +308,14 @@ function collectTypeFields(ps: Node<ts.Node>) {
 function handleTypeReferenceArgument(typeArgument: TypeNode<ts.TypeNode>, index: number, aliasSourceFile: SourceFile, metadata: FuncMetadata) {
   //
 
-  const aliasDecl = aliasSourceFile.getTypeAlias(typeArgument.getText()); // type Request = { name: string, age: number }
+  const payloadSourceFile = getTypeDeclarationSourceFile(aliasSourceFile, typeArgument.getText(true));
+  printToLog("  payloadSourceFile    :", payloadSourceFile.getFilePath()); // /Users/username/Workspace/projectname/src/app/types.ts
+
+  const aliasDecl = payloadSourceFile.getTypeAlias(typeArgument.getText()); // type Request = { name: string, age: number }
 
   const typeLiteral = aliasDecl?.getTypeNode()?.asKind(SyntaxKind.TypeLiteral); //{ name: string, age: number}
 
   const typeFields = typeLiteral?.getProperties().map((ps) => collectTypeFields(ps));
-
-  const payloadSourceFile = getTypeDeclarationSourceFile(aliasSourceFile, typeArgument.getText(true));
-  printToLog("  payloadSourceFile    :", payloadSourceFile.getFilePath()); // /Users/username/Workspace/projectname/src/app/types.ts
 
   const dk = getDeclarationKind(payloadSourceFile, typeArgument.getText(true));
 
@@ -410,6 +450,104 @@ async function extractTypeArguments(funcDecl: FunctionDeclaration, metadata: Fun
   });
 }
 
+// prettier-ignore
+const standardJsDocTags = new Set([
+  "abstract", "author", "deprecated", "example", "exception", "inheritDoc", "internal", "license", "link", "override", "param",
+  "private", "protected", "public", "readonly", "remarks", "return", "returns", "see", "since", "template", "throws", "todo", "type", "typedef", "version",
+]);
+
+/**
+ * Ensures every decorator follows the rules registered at startup. All problems are reported at once.
+ * @param metadatas - The metadata of all scanned functions, with their type arguments already extracted.
+ * @param options - The registered custom decorators.
+ */
+function validateDecorators(metadatas: FuncMetadata[], options: SkeletoOptions) {
+  const decoratorRules = options.decorators ?? {};
+  const fieldRules = options.fieldDecorators ?? {};
+
+  const problems: string[] = [];
+
+  const isMainDecorator = (name: string) => InjectableDecorator.some((x) => x === name);
+  const hasInvalidJson = (decorator: Decorator) => typeof decorator.data === "string" && decorator.data.startsWith("{");
+  const getOwners = (name: string, fieldsKey: "requestFields" | "responseFields") => Object.keys(decoratorRules).filter((owner) => decoratorRules[owner][fieldsKey]?.[name]);
+
+  metadatas.forEach((metadata) => {
+    const hasTypeArguments = metadata.mainDecorator.data?.["readTypeArguments"] === true;
+    const functionDecorators = [...metadata.additionalDecorators, ...(metadata.returnTypeDecorator ?? [])];
+
+    const checkDecorator = (decorator: Decorator) => {
+      const label = `${metadata.name}: decorator @${decorator.name}`;
+
+      if (hasInvalidJson(decorator)) {
+        problems.push(`${label} has invalid JSON`);
+        return;
+      }
+
+      if (isMainDecorator(decorator.name) || standardJsDocTags.has(decorator.name)) return;
+
+      const rule = decoratorRules[decorator.name];
+      if (!rule) {
+        const isFieldDecorator = fieldRules[decorator.name] || getOwners(decorator.name, "requestFields").length > 0 || getOwners(decorator.name, "responseFields").length > 0;
+        problems.push(`${label} ${isFieldDecorator ? "can only be used on a field" : "is not registered"}`);
+        return;
+      }
+
+      if (rule.requiresTypeArguments && !hasTypeArguments) {
+        problems.push(`${label} requires @Action {"readTypeArguments": true}`);
+        return;
+      }
+
+      const message = rule.validate?.(decorator.data, metadata);
+      if (message) problems.push(`${label} ${message}`);
+    };
+
+    const checkFieldDecorator = (fieldsKey: "requestFields" | "responseFields", field: TypeField, decorator: Decorator) => {
+      const label = `${metadata.name}: field ${field.name}: decorator @${decorator.name}`;
+
+      if (hasInvalidJson(decorator)) {
+        problems.push(`${label} has invalid JSON`);
+        return;
+      }
+
+      if (standardJsDocTags.has(decorator.name)) return;
+
+      const owners = getOwners(decorator.name, fieldsKey);
+      const owner = owners.find((x) => functionDecorators.some((y) => y.name === x));
+      const rule = owner ? decoratorRules[owner][fieldsKey]?.[decorator.name] : fieldRules[decorator.name];
+
+      if (!rule) {
+        const otherFieldsKey = fieldsKey === "requestFields" ? "responseFields" : "requestFields";
+
+        if (owners.length > 0) {
+          problems.push(`${label} requires ${owners.map((x) => `@${x}`).join(" or ")} on the function`);
+        } else if (getOwners(decorator.name, otherFieldsKey).length > 0) {
+          problems.push(`${label} can only be used on a ${otherFieldsKey === "requestFields" ? "Request" : "Response"} field`);
+        } else if (decoratorRules[decorator.name] || isMainDecorator(decorator.name)) {
+          problems.push(`${label} cannot be used on a field`);
+        } else {
+          problems.push(`${label} is not registered`);
+        }
+        return;
+      }
+
+      const message = rule.validate?.(decorator.data, metadata);
+      if (message) problems.push(`${label} ${message}`);
+    };
+
+    [metadata.mainDecorator, ...functionDecorators].forEach(checkDecorator);
+
+    metadata.request?.decorators?.forEach(checkDecorator);
+    metadata.request?.structure?.forEach((field) => field.decorators.forEach((decorator) => checkFieldDecorator("requestFields", field, decorator)));
+
+    metadata.response?.decorators?.forEach(checkDecorator);
+    metadata.response?.structure?.forEach((field) => field.decorators.forEach((decorator) => checkFieldDecorator("responseFields", field, decorator)));
+  });
+
+  if (problems.length > 0) {
+    throw new Error(`Invalid decorator usage:\n  - ${problems.join("\n  - ")}`);
+  }
+}
+
 // Apply wrappers
 function applyWrappers(currentResult: any, metadata: FuncMetadata, wrapperMetadatas: FuncMetadata[], funcResultMap: Map<string, FuncInstanceMetadata>) {
   const sortBasedOrdinal = wrapperMetadatas.sort((a, b) => ((a.mainDecorator.data.ordinal ?? 0) as number) - ((b.mainDecorator.data.ordinal ?? 0) as number));
@@ -421,17 +559,16 @@ function applyWrappers(currentResult: any, metadata: FuncMetadata, wrapperMetada
 }
 
 function getParameterHandler(funcDecl: FunctionDeclaration, funcResultMap: Map<string, FuncInstanceMetadata>) {
-  const paramHandlers: any[] = [];
-
-  funcDecl.getParameters().forEach((param) => {
+  return funcDecl.getParameters().map((param) => {
     const paramTypeName = getFunctionReturnTypeName(param.getTypeNode());
 
-    if (funcResultMap.has(paramTypeName)) {
-      paramHandlers.push(funcResultMap.get(paramTypeName)?.getInstance());
+    const paramHandler = funcResultMap.get(paramTypeName);
+    if (!paramHandler) {
+      throw new Error(`Function ${funcDecl.getName()} depends on ${paramTypeName} which is not instantiated yet.`);
     }
-  });
 
-  return paramHandlers;
+    return paramHandler.getInstance();
+  });
 }
 
 // Resolve functions
@@ -445,10 +582,6 @@ async function resolveFunctions(
     const funcDecl = funcMap.get(funcMetadata.name)?.funcDeclaration as FunctionDeclaration;
 
     printToLog("  funcDecl             :", funcDecl.getName());
-
-    if (funcMetadata.mainDecorator.name === "Action" && funcMetadata.mainDecorator.data?.["readTypeArguments"]) {
-      await extractTypeArguments(funcDecl, funcMetadata);
-    }
 
     const module = await import(funcDecl.getSourceFile().getFilePath());
 
@@ -470,9 +603,10 @@ async function resolveFunctions(
 /**
  * Scans the project for functions, sorts them by kind, resolves their dependencies and wrappers, and returns the results.
  * @param project - The project containing the source files.
+ * @param options - The startup options.
  * @returns A map of function names to their resolved instances and metadata.
  */
-export async function scanFunctions(project: Project) {
+export async function scanFunctions(project: Project, options?: SkeletoOptions) {
   //
 
   printToLog("scanned function:");
@@ -480,6 +614,17 @@ export async function scanFunctions(project: Project) {
 
   printToLog("sort by dependencies");
   const { configMetadatas, wrapperMetadatas, actionMetadatas } = sortFunctionsByKind(funcMap);
+
+  // read the metadata before any function runs, so an invalid usage stops the startup without side effects
+  for (const funcMetadata of actionMetadatas) {
+    if (funcMetadata.mainDecorator.data?.["readTypeArguments"]) {
+      await extractTypeArguments(funcMap.get(funcMetadata.name)?.funcDeclaration as FunctionDeclaration, funcMetadata);
+    }
+  }
+
+  if (options?.decorators || options?.fieldDecorators) {
+    validateDecorators([...configMetadatas, ...wrapperMetadatas, ...actionMetadatas], options);
+  }
 
   const funcResultMap: Map<string, FuncInstanceMetadata> = new Map();
 
